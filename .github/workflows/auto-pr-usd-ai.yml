@@ -1,0 +1,215 @@
+
+name: Auto PR – README (USD) + AI files
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Create/Update files (Makefile, scripts, docs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p scripts docs/ai
+
+          cat > Makefile <<'MF'
+          .PHONY: ai-test ai-health stripe-seed-usd stripe-verify-usd
+
+          ai-test:
+              @[ -n "$$PPLX_API_KEY" ] || (echo "PPLX_API_KEY not set"; exit 1)
+              curl -s -X POST https://api.perplexity.ai/chat/completions \
+               -H "Authorization: Bearer $$PPLX_API_KEY" \
+               -H "Content-Type: application/json" \
+               -d '{"model":"sonar-pro","messages":[{"role":"user","content":"Hei, gi en kort status for BTC-markedet."}], "max_tokens":200}' \
+               | jq -e '.choices[0].message.content' >/dev/null
+
+          ai-health:
+              bash scripts/perplexity_healthcheck.sh
+
+          stripe-seed-usd:
+              bash scripts/stripe_seed_usd.sh
+
+          stripe-verify-usd:
+              bash scripts/stripe_verify_usd.sh
+          MF
+
+          cat > scripts/perplexity_healthcheck.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${PPLX_API_KEY:?PPLX_API_KEY is required}"
+
+          payload='{
+            "model": "sonar-pro",
+            "messages": [
+              {"role":"user","content":"Healthcheck: return only JSON {\"ok\":true} with no extra text."}
+            ],
+            "max_tokens": 32,
+            "temperature": 0.0
+          }'
+
+          resp="$(curl -sS -X POST https://api.perplexity.ai/chat/completions \
+            -H "Authorization: Bearer ${PPLX_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$payload")"
+
+          content="$(echo "$resp" | jq -r '.choices[0].message.content // empty')"
+          [[ "$content" =~ \"ok\"\:\ *true ]] || { echo "Bad content: $content"; exit 2; }
+          echo "Perplexity OK"
+          SH
+          chmod +x scripts/perplexity_healthcheck.sh
+
+          cat > scripts/stripe_seed_usd.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${STRIPE_SECRET:?STRIPE_SECRET is required}"
+
+          starter_pid=$(curl -sS https://api.stripe.com/v1/products \
+            -u ${STRIPE_SECRET}: \
+            -d name="Klarpakke Starter" \
+            -d statement_descriptor="Klarpakke Starter" | jq -r '.id')
+
+          starter_price=$(curl -sS https://api.stripe.com/v1/prices \
+            -u ${STRIPE_SECRET}: \
+            -d "currency=usd" \
+            -d "unit_amount=0" \
+            -d "recurring[interval]=month" \
+            -d "product=${starter_pid}" | jq -r '.id')
+
+          auto_pid=$(curl -sS https://api.stripe.com/v1/products \
+            -u ${STRIPE_SECRET}: \
+            -d name="Klarpakke Autopakke" \
+            -d statement_descriptor="Klarpakke Auto" | jq -r '.id')
+
+          auto_price=$(curl -sS https://api.stripe.com/v1/prices \
+            -u ${STRIPE_SECRET}: \
+            -d "currency=usd" \
+            -d "unit_amount=4900" \
+            -d "recurring[interval]=month" \
+            -d "product=${auto_pid}" | jq -r '.id')
+
+          pro_pid=$(curl -sS https://api.stripe.com/v1/products \
+            -u ${STRIPE_SECRET}: \
+            -d name="Klarpakke Proffpakke" \
+            -d statement_descriptor="Klarpakke Pro" | jq -r '.id')
+
+          pro_price=$(curl -sS https://api.stripe.com/v1/prices \
+            -u ${STRIPE_SECRET}: \
+            -d "currency=usd" \
+            -d "unit_amount=9900" \
+            -d "recurring[interval]=month" \
+            -d "product=${pro_pid}" | jq -r '.id')
+
+          echo "STARTER_PRICE_ID_USD=${starter_price}"
+          echo "AUTOPAKKE_PRICE_ID_USD=${auto_price}"
+          echo "PROFFPAKKE_PRICE_ID_USD=${pro_price}"
+
+          cat > stripe_usd_prices.env <<EOF
+          STARTER_PRICE_ID_USD=${starter_price}
+          AUTOPAKKE_PRICE_ID_USD=${auto_price}
+          PROFFPAKKE_PRICE_ID_USD=${pro_price}
+          EOF
+
+          echo "Wrote stripe_usd_prices.env"
+          SH
+          chmod +x scripts/stripe_seed_usd.sh
+
+          cat > scripts/stripe_verify_usd.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          : "${STRIPE_SECRET:?STRIPE_SECRET is required}"
+          : "${AUTOPAKKE_PRICE_ID_USD:?AUTOPAKKE_PRICE_ID_USD is required}"
+
+          curl -sS https://api.stripe.com/v1/prices/${AUTOPAKKE_PRICE_ID_USD} \
+            -u ${STRIPE_SECRET}: | jq -e '.currency=="usd" and .recurring.interval=="month"'
+          echo "Stripe USD price verified."
+          SH
+          chmod +x scripts/stripe_verify_usd.sh
+
+          mkdir -p docs/ai
+          cat > docs/ai/CONTEXT.md <<'MD'
+          # Klarpakke – AI & Billing kontekst
+          - Perplexity: POST https://api.perplexity.ai/chat/completions • les `.choices[0].message.content`.
+          - Bubble API Connector: Use as Action + Private Authorization; server-side som standard.
+          - Stripe USD-priser: se scripts/stripe_seed_usd.sh.
+          MD
+
+          cat > docs/ai/BUBBLE-CHECKLIST.md <<'MD'
+          # Bubble – USD og Perplexity
+          1) Kjør `make stripe-seed-usd` og kopier `price_*` fra stripe_usd_prices.env.
+          2) Endre Bubble Checkout/Subscribe til USD `price_*`.
+          3) API Connector (Perplexity): Use as Action + Private Authorization, mapping til `choices:first item's message:content`.
+          MD
+
+      - name: Patch README (USD + AI-seksjon)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > patch.diff <<'PATCH'
+          *** Begin Patch
+          *** Update File: README.md
+          @@
+          - Klarpakke er en SaaS-plattform som automatiserer kryptohandel via 3Commas-integrasjon med Stripe-betalinger.
+          + Klarpakke er en SaaS-plattform som automatiserer kryptohandel via 3Commas-integrasjon med Stripe-betalinger.
+          +
+          + > **Valutaoppdatering (USD):** Alle priser er nå i **USD**. Omregningsgrunnlag pr. 2026‑01‑17: ~1 USD = 10.08–10.12 NOK. Vi standardiserer til **$49** og **$99** per måned for Autopakke/Proffpakke.
+          @@
+          - ✅ 3 prisnivåer:
+          -   - Starter: 0 NOK/måned (gratis)
+          -   - Autopakke: 499 NOK/måned
+          -   - Proffpakke: 999 NOK/måned
+          + ✅ 3 prisnivåer (**USD**):
+          +   - Starter: **$0** / måned (gratis)
+          +   - Autopakke: **$49** / måned
+          +   - Proffpakke: **$99** / måned
+          @@
+          + ## AI-integrasjon (Perplexity Sonar‑Pro)
+          + - Endpoint: `POST https://api.perplexity.ai/chat/completions` – les `choices[0].message.content`.
+          + - Bubble API Connector: **Use as: Action**, **Private** Authorization, server‑side som standard.
+          + - CLI‑test:
+          + ```bash
+          + curl -s -X POST https://api.perplexity.ai/chat/completions \
+          +   -H "Authorization: Bearer $PPLX_API_KEY" \
+          +   -H "Content-Type: application/json" \
+          +   -d '{"model":"sonar-pro","messages":[{"role":"user","content":"Hei, gi en kort status."}],"max_tokens":160}' \
+          +   | jq -r '.choices[0].message.content'
+          + ```
+          *** End Patch
+          PATCH
+
+          if git apply --check patch.diff; then
+            git apply patch.diff
+          else
+            echo "Patch could not be applied cleanly; appending section to README..."
+            {
+              echo ""
+              echo "## AI & USD-oppdatering"
+              echo "- USD: Starter \$0 / Autopakke \$49 / Proffpakke \$99."
+              echo "- Perplexity endpoint: POST https://api.perplexity.ai/chat/completions (les \`.choices[0].message.content\`)."
+              echo "- Bubble API Connector: Use as Action + Private Authorization."
+            } >> README.md
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "docs/chore: README til USD + AI-filer (Makefile, scripts, docs)"
+          branch: chore/auto-usd-ai
+          title: "Automatisk PR: README→USD + AI-filer"
+          body: |
+            Denne PR-en oppdaterer README (USD-priser og Perplexity-seksjon), og legger til:
+            - Makefile (ai-test/ai-health/stripe-seed-usd/stripe-verify-usd)
+            - scripts/ (Perplexity healthcheck, Stripe seed/verify)
+            - docs/ai/ (CONTEXT og Bubble-sjekkliste)
+            Etter merge: sett GitHub Secrets `PPLX_API_KEY` og `STRIPE_SECRET`.
+          labels: documentation, automation
