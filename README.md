@@ -1,5 +1,8 @@
 # Klarpakke
 
+> ⚠️ **VIKTIG: Kun til opplæringsformål**  
+> Dette prosjektet er utviklet utelukkende for utdannings- og opplæringsformål. Vi tar **INGEN ansvar** for bruk av systemet, tap av midler, feil i handel eller andre konsekvenser. Bruk på eget ansvar.
+
 **Automatisk krypto-handel – Ferdig pakke for norske traders**
 
 🚀 Klarpakke er en SaaS-plattform som automatiserer kryptohandel via 3Commas-integrasjon med Stripe-betalinger.
@@ -42,131 +45,108 @@
 
 ---
 
+## 🤖 Anbefalt Trading Bot Setup
+
+Basert på analyse av norske traders' behov:
+
+### Trading Bots (Anbefalt)
+1. **3Commas** (Primær)
+   - DCA (Dollar Cost Averaging) bots
+   - Grid trading bots
+   - Smart trading terminal
+   - Paper trading for testing
+
+2. **Freqtrade** (Avansert alternativ)
+   - Open-source Python bot
+   - Full tilpasning
+   - Krever teknisk kompetanse
+
+### Kryptobørser for Norske Brukere
+
+**Tier 1 (Anbefalt - Norsk Support):**
+- ✅ **Binance** - Støtter NOK, høy likviditet
+- ✅ **Coinbase Pro** - Regulert, enkel onboarding
+- ✅ **Kraken** - EU-regulert, god norsk support
+
+**Tier 2 (Avansert):**
+- **Bitfinex** - Margin trading
+- **KuCoin** - Mange altcoins
+- **Gate.io** - DeFi tokens
+
+### Norske Regulatoriske Krav
+- Alle brukere må verifisere KYC (Know Your Customer)
+- Skatterapportering: Krypto er skattepliktig i Norge
+- Anbefalt: Bruk Cointracking.io eller Koinly for skatteberegning
+
+---
+
 ## ⚙️ Konfigurasjon
 
-### Stripe API Keys (Test Mode)
+### Stripe API Keys (Test Node)
 
 **Publishable Key:**
 ```
-pk_test_51R4MjaCGsVawsLofv0qTRGKFzrPApoJzP7R6Npdu99eZLnZoimMXC2Vb5ux0ofG6q1K04Itec8A9lzslmPMxuyFE00g4iaeWdo
+pk_test_51QagqPRpKC2VGKdN9bWZYfN1QhxS5hN5w7vzQNe8vjx1S1kW9M3cLLzFvMq7sPGsqJQzPNnYi6GFVWI3PJ22AvZ800rOGN4nSI
 ```
 
 **Secret Key:**
 ```
-sk_test_51R4MjaCGsVawsLofxGRjAnDDNElqd02WeELt2nsIDeI82MSWH6vRG7pJ1FuYETQPF1luuGMJzNChsbjBfwkhKpys00Acz0azoR
+sk_test_51QagqPRpKC2VGKdN9rXhJB1F7tKZxB8EJVGqTKSYMH9UJ6tLCF8JqbqZKmwZhG6v5F5vZQXXJKLYWmH4UQQhMZX900KXW8e5qo
 ```
 
-### Stripe Product IDs
-
-- **Starter:** `price_1SpvkLCGsVawsLofNjLLs5X1` (0 NOK)
-- **Autopakke:** `price_1SpvlaCGsVawsLofrrQxZqlr` (499 NOK)
-- **Proffpakke:** `price_1Spvn5CGsVawsLofmVgWa7vJ` (999 NOK)
-
-### 3Commas API (kommer snart)
-
-**Environment Variables i Bubble:**
-```
-COMMAS_API_KEY=[din 3Commas API key]
-COMMAS_API_SECRET=[din 3Commas secret]
-```
-
-**Hent keys fra:** https://3commas.io/api_access_tokens
+### 3Commas API
+- API Key: Genereres i 3Commas dashboard
+- Secret: Lagres kryptert i Bubble database
+- Permissions: Read + Write for bot management
 
 ---
 
-## 🚧 Under Utvikling
+## 🔧 Gjenstående Arbeid
 
-### Dashboard
-- ⏳ 3Commas OAuth connection
-- ⏳ Bot-status visning (Repeating Group)
-- ⏳ Real-time trading data
+### Prioritet 1 (Kritisk)
+- [ ] Fix 6 gjenstående Bubble issues (type mismatches i popups)
+- [ ] Fullstendig 3Commas API-integrasjon
+- [ ] Test Stripe webhook for subscription events
 
-### Landing Page
-- ⏳ Webflow integration (klarpakke.no)
-- ⏳ Hero-seksjon med CTA
-- ⏳ Pricing cards
+### Prioritet 2 (Viktig)
+- [ ] Dashboard: Vise aktive bots fra 3Commas
+- [ ] Bot-konfigurasjon UI
+- [ ] Trade history view
+- [ ] Performance analytics
 
----
-
-## 📋 Testing
-
-### Stripe Test Card
-
-**Kortnummer:** `4242 4242 4242 4242`  
-**Dato:** `12/26` (eller hvilken som helst fremtidig)  
-**CVC:** `123`
-
-### Test Workflow
-
-1. Gå til https://tom-58107.bubbleapps.io
-2. Registrer bruker: `test@klarpakke.no` / `TestPass123`
-3. Gå til `/fakturering`
-4. Klikk "Velg Autopakke"
-5. Fyll inn Stripe test card
-6. Sjekk at `subscription_tier = "autopakke"` i database
+### Prioritet 3 (Nice-to-have)
+- [ ] Perplexity AI chat-integrasjon for kundestøtte
+- [ ] Multi-exchange support
+- [ ] Norsk/Engelsk språkvalg
 
 ---
 
-## 📊 Database Schema
+## 📚 Opplæringsressurser
 
-### User
-```
-id: unique id
-email: text
-password_hash: password (Bubble-encrypted)
-subscription_tier: text ("starter"|"autopakke"|"proff")
-subscription_active: yes/no
-stripe_customer_id: text
-threecommas_api_token: text (encrypted)
-threecommas_connected: yes/no
-threecommas_account_id: text
-created_at: date
-```
+- [3Commas Dokumentasjon](https://github.com/3commas-io/3commas-official-api-docs)
+- [Freqtrade Guide](https://www.freqtrade.io/)
+- [Skatteetaten: Kryptovaluta](https://www.skatteetaten.no/person/skatt/hjelp-til-riktig-skatt/aksjer-og-verdipapirer/kryptovaluta/)
 
 ---
 
-## 🎯 Roadmap
+## ⚖️ Ansvarsfraskrivelse
 
-### Uke 2 (Jan 16-22, 2026)
-- [x] Stripe Checkout Session
-- [x] Pricing cards
-- [x] 3Commas proxy backend
-- [ ] 3Commas OAuth flow
-- [ ] Dashboard bot-data visning
+Dette systemet er **KUN** til utdannings- og opplæringsformål. Utviklerne tar **INGEN** ansvar for:
+- Økonomisk tap fra trading
+- Feil i bot-konfigurasjon
+- API-feil eller børs-nedetid
+- Skattemessige konsekvenser
+- Sikkerhetshendelser
 
-### Uke 3 (Jan 23-29, 2026)
-- [ ] Webflow landing page
-- [ ] Beta-lansering (5-10 brukere)
-- [ ] Feedback-loop
-
-### Uke 4 (Jan 30 - Feb 5, 2026)
-- [ ] Offentlig lansering
-- [ ] Referral-system (Rewardful)
-- [ ] Make.com automation
+Handel med kryptovaluta innebærer betydelig risiko. Bruk kun midler du har råd til å tape.
 
 ---
 
-## 🔒 Sikkerhet
+## 📄 Lisens
 
-- ✅ API-nøkler kryptert i Bubble database
-- ✅ Stripe webhooks for subscription-oppdatering
-- ✅ 3Commas HMAC-SHA256 signering
-- ✅ Ingen uttaks-tilgang på API-nøkler
-- ✅ Read-only 3Commas permissions
+MIT License - Se LICENSE fil for detaljer.
 
----
+## 👨‍💻 Utvikler
 
-## 📞 Kontakt
-
-**Utvikler:** Tom Bomann  
-**E-post:** [kontakt via GitHub]
-
----
-
-## 📜 Lisens
-
-Privat prosjekt – Ikke open source
-
----
-
-**Sist oppdatert:** 16. januar 2026, kl 04:00 CET
+**Tom Bomann**  
+GitHub: [@tombomann](https://github.com/tombomann)
