@@ -1,0 +1,29 @@
+*** Begin Patch
+*** Update File: README.md
+@@
+- Klarpakke er en SaaS-plattform som automatiserer kryptohandel via 3Commas-integrasjon med Stripe-betalinger.
++ Klarpakke er en SaaS-plattform som automatiserer kryptohandel via 3Commas-integrasjon med Stripe-betalinger.
++
++ > **Valutaoppdatering (USD):** Alle priser er nå i **USD**. Omregningsgrunnlag pr. 2026‑01‑17: ~1 USD = 10.08–10.12 NOK. Vi standardiserer til **$49** og **$99** per måned for Autopakke/Proffpakke.
+@@
+- ✅ 3 prisnivåer:
+-   - Starter: 0 NOK/måned (gratis)
+-   - Autopakke: 499 NOK/måned
+-   - Proffpakke: 999 NOK/måned
++ ✅ 3 prisnivåer (**USD**):
++   - Starter: **$0** / måned (gratis)
++   - Autopakke: **$49** / måned
++   - Proffpakke: **$99** / måned
+@@
++ ## AI-integrasjon (Perplexity Sonar‑Pro)
++ - Endpoint: `POST https://api.perplexity.ai/chat/completions` – les `choices[0].message.content`.
++ - Bubble API Connector: **Use as: Action**, **Private** Authorization, server‑side som standard.
++ - CLI‑test:
++ ```bash
++ curl -s -X POST https://api.perplexity.ai/chat/completions \
++   -H "Authorization: Bearer $PPLX_API_KEY" \
++   -H "Content-Type: application/json" \
++   -d '{"model":"sonar-pro","messages":[{"role":"user","content":"Hei, gi en kort status."}],"max_tokens":160}' \
++   | jq -r '.choices[0].message.content'
++ ```
+*** End Patch

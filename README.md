@@ -328,3 +328,8 @@ Twitter: [@tombomann](https://twitter.com/tombomann)
 
 > "The best time to plant a tree was 20 years ago. The second best time is now."  
 > **Start din AI-powered crypto journey i dag. 🌱**
+
+## AI & USD-oppdatering
+- USD: Starter $0 / Autopakke $49 / Proffpakke $99.
+- Perplexity endpoint: POST https://api.perplexity.ai/chat/completions (les `.choices[0].message.content`).
+- Bubble API Connector: Use as Action + Private Authorization.
