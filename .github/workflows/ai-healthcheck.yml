@@ -1,20 +1,8 @@
-name: AI Healthcheck - Perplexity Sonar-Pro
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
-jobs:
-  perplexity-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get install -y jq
-      - run: bash scripts/perplexity_healthcheck.sh
-        env:
-          PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ai-sample-response
-          path: ai-sample.json
-          retention-days: 7
+-      - name: Upload artifact
+-        uses: actions/upload-artifact@v3
++      - name: Upload artifact
++        uses: actions/upload-artifact@v4
+         with:
+           name: ai-sample
+           path: ai-sample.json
+``
