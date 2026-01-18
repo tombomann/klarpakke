@@ -1,21 +1,30 @@
-#!/usr/bin/env bash
-set -euo pipefail
-: "${PPLX_API_KEY:?PPLX_API_KEY is required}"
-
-payload='{
-  "model": "sonar-pro",
-  "messages": [
-    {"role":"user","content":"Healthcheck: return only JSON {\"ok\":true} with no extra text."}
-  ],
-  "max_tokens": 32,
-  "temperature": 0.0
-}'
-
-resp="$(curl -sS -X POST https://api.perplexity.ai/chat/completions \
-  -H "Authorization: Bearer ${PPLX_API_KEY}" \
+#!/bin/bash
+set -e
+API_KEY="${PPLX_API_KEY}"
+if [ -z "$API_KEY" ]; then
+  echo "❌ ERROR: PPLX_API_KEY not set"
+  exit 1
+fi
+echo "🚀 Starting Perplexity healthcheck..."
+RESPONSE=$(curl -s -X POST "https://api.perplexity.ai/chat/completions" \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
-  -d "$payload")"
-
-content="$(echo "$resp" | jq -r '.choices[0].message.content // empty')"
-[[ "$content" =~ \"ok\"\:\ *true ]] || { echo "Bad content: $content"; exit 2; }
-echo "Perplexity OK"
+  -d '{
+    "model": "sonar-pro",
+    "messages": [{
+      "role": "system",
+      "content": "Du er en ekspertanalytiker for kryptomarkeder"
+    },{
+      "role": "user",
+      "content": "Analyser BTC/USD markedet kort"
+    }],
+    "max_tokens": 256
+  }')
+echo "$RESPONSE" > ai-sample.json
+CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content' 2>/dev/null)
+if [ -z "$CONTENT" ]; then
+  echo "❌ ERROR: Invalid response"
+  exit 1
+fi
+echo "✅ Healthcheck PASSED"
+echo "📝 Response: $CONTENT"

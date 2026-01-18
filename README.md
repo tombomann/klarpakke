@@ -221,10 +221,11 @@ Output: Strategy rotation plan
 ## 🔧 Gjenstående Arbeid
 
 ### Sprint 1: AI Foundation (Week 1-2) - IN PROGRESS
-- [x] Integrate Perplexity Pro API
-- [ ] Create AISignal data type
-- [ ] Build prompt template system
-- [ ] Test signal generation (>70% accuracy)
+- ✅ Integrate Perplexity Pro API
+- ✅ Create AISignal data type (✅ JAN 18, 2026)
+- 🔄 Build prompt template system
+- 🔄 Test signal generation (>70% accuracy)
+
 
 ### Sprint 2: Strategy Generation (Week 3-4)
 - [ ] Natural language strategy input UI
