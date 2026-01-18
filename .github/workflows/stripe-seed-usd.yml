@@ -18,7 +18,7 @@ jobs:
       - run: bash scripts/stripe_verify_usd.sh
         env:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: stripe-usd-prices-manifest
           path: stripe_usd_prices.env
