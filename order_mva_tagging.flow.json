@@ -1,0 +1,51 @@
+{
+  "name": "KlarPakke • Order MVA tagging (pre/post)",
+  "trigger": { "type": "order_created" },
+  "nodes": [
+    {
+      "type": "condition",
+      "label": "Er MVA registrert?",
+      "condition": "{{ shop.metafields.custom.mva_registered }} == true",
+      "on_true": {
+        "type": "branch",
+        "nodes": [
+          {
+            "type": "condition",
+            "label": "Shipping country = NO",
+            "condition": "{{ order.shipping_address.country_code }} == 'NO' ",
+            "on_true": {
+              "type": "action",
+              "action": "add_order_tags",
+              "params": { "tags": ["MVA_NO"] }
+            },
+            "on_false": {
+              "type": "action",
+              "action": "add_order_tags",
+              "params": { "tags": ["EXPORT"] }
+            }
+          }
+        ]
+      },
+      "on_false": {
+        "type": "branch",
+        "nodes": [
+          {
+            "type": "condition",
+            "label": "Shipping country = NO (pre reg)",
+            "condition": "{{ order.shipping_address.country_code }} == 'NO' ",
+            "on_true": {
+              "type": "action",
+              "action": "add_order_tags",
+              "params": { "tags": ["NO_PRE_MVA"] }
+            },
+            "on_false": {
+              "type": "action",
+              "action": "add_order_tags",
+              "params": { "tags": ["EXPORT"] }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+name: Stripe Seed USD Prices
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'test or live'
+        required: true
+        default: 'test'
+jobs:
+  stripe-seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/stripe_seed_usd.sh
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
+      - run: bash scripts/stripe_verify_usd.sh
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: stripe-usd-prices-manifest
+          path: stripe_usd_prices.env
+          retention-days: 30
