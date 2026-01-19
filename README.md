@@ -17,6 +17,65 @@ Vi demokratiserer algoritmisk trading ved å gi norske retail traders tilgang ti
 
 ---
 
+## 🏗️ Infrastruktur & Deployment
+
+### Tech Stack
+- **Frontend:** Bubble.io (No-code rapid development)
+- **Backend:** Node.js + Express (API proxy server)
+- **Database:** PostgreSQL
+- **AI Engine:** Perplexity Pro API (Sonar-Pro model)
+- **Payments:** Stripe Subscriptions
+- **Trading Execution:** 3Commas API (HMAC-SHA256 secured)
+- **Hosting:** Oracle Cloud Infrastructure (OCI)
+  - **Region:** Stockholm (eu-stockholm-1)
+  - **Instance:** klarpakke-vm
+  - **Public IP:** 129.151.201.41
+
+### Repository Structure
+```
+klarpakke/
+├── backend/           # Node.js Express server
+│   ├── api/          # API routes
+│   ├── services/     # Business logic
+│   └── config/       # Configuration
+├── docs/             # Documentation
+├── scripts/          # Deployment & automation
+└── .github/
+    └── workflows/    # CI/CD pipelines
+```
+
+### Deployment
+
+**Production Server:**
+- SSH: `ssh -i ~/.ssh/oci_klarpakke opc@129.151.201.41`
+- OS: Oracle Linux 8
+- Web Server: Nginx (reverse proxy)
+- Process Manager: PM2
+
+**Environment Variables:**
+```bash
+PPLX_API_KEY=<Perplexity API key>
+STRIPE_SECRET_KEY=<Stripe secret key>
+DATABASE_URL=postgres://klarpakke_user:<password>@localhost:5432/klarpakke_db
+JWT_SECRET=<JWT secret for auth>
+```
+
+**Secrets Management:**
+- Production secrets: Bitwarden (Klarpakke vault)
+- GitHub Secrets: For CI/CD automation
+- Local development: `.env` (gitignored)
+
+### CI/CD Pipeline
+
+Automated deployment via GitHub Actions:
+1. Push to `main` branch
+2. Run tests
+3. Build Docker image
+4. Deploy to Oracle Cloud VM
+5. Health check
+
+---
+
 ## 🧠 Hvorfor Klarpakke > Tradisjonelle Trading Bots
 
 ### Traditional Bots (3Commas/Freqtrade)
@@ -47,13 +106,6 @@ Layer 3 (Data): Binance/Kraken - Real-time market data
 Layer 4 (User Interface): Bubble.io - No-code rapid deployment
 ```
 
-**Tech Stack:**
-- Frontend: Bubble.io (No-code)
-- AI Brain: Perplexity Pro API (Sonar-Pro model)
-- Betaling: Stripe Subscriptions
-- Trading Execution: 3Commas API (via HMAC-SHA256 proxy)
-- Hosting: Bubble Cloud
-
 **Live URL:** https://tom-58107.bubbleapps.io
 
 ---
@@ -83,6 +135,13 @@ Layer 4 (User Interface): Bubble.io - No-code rapid deployment
 - 🔄 AI Signal Generation (under utvikling)
 - 🔄 Strategy Optimization Engine (under utvikling)
 - 🔄 Risk Monitoring System (under utvikling)
+
+### 5. Infrastructure & DevOps (NY!)
+- ✅ Oracle Cloud Infrastructure setup
+- ✅ PostgreSQL database provisioned
+- ✅ Secrets management (Bitwarden + GitHub Secrets)
+- ✅ SSH key-based authentication
+- 🔄 CI/CD pipeline (under utvikling)
 
 ---
 
@@ -161,20 +220,20 @@ Output: Strategy rotation plan
 
 ## 💰 Prismodell (Optimalisert for AI-Era)
 
-### Tier 1: "Klarpakke Autopilot" - 399 NOK/måned
+### Tier 1: "Klarpakke Autopilot" - $49/måned
 - 3 pre-configured AI strategies (Conservative/Balanced/Aggressive)
 - Daily AI summary emails
 - Basic risk monitoring
-- Max 50,000 NOK portfolio
+- Max $10,000 portfolio
 
-### Tier 2: "Klarpakke Pro" - 799 NOK/måned  
+### Tier 2: "Klarpakke Pro" - $99/måned  
 - **Custom AI strategy generation** (natural language input)
 - Real-time AI signals (every 15 min)
 - Advanced risk alerts (regulatory + technical)
 - Multi-bot portfolio management
-- Max 500,000 NOK portfolio
+- Max $100,000 portfolio
 
-### Tier 3: "Klarpakke Elite" - 1,999 NOK/måned
+### Tier 3: "Klarpakke Elite" - TBD
 - Everything in Pro
 - **Dedicated AI analyst** (personalized prompts)
 - **Tax optimization** (Norwegian tax-loss harvesting)
@@ -198,7 +257,7 @@ Output: Strategy rotation plan
 6. **UserProfile** - Extended user data
 
 ### API Integrations
-- ✅ Perplexity Pro (Sonar-Pro model)
+- ✅ Perplexity Pro (Sonar-Pro model) - POST https://api.perplexity.ai/chat/completions
 - ✅ 3Commas (Bot execution)
 - ✅ Stripe (Payments)
 - ✅ Coinbase/Binance (Market data via 3Commas)
@@ -223,9 +282,10 @@ Output: Strategy rotation plan
 ### Sprint 1: AI Foundation (Week 1-2) - IN PROGRESS
 - ✅ Integrate Perplexity Pro API
 - ✅ Create AISignal data type (✅ JAN 18, 2026)
+- ✅ Infrastructure setup (Oracle Cloud + Database)
+- ✅ Secrets management (Bitwarden + GitHub)
 - 🔄 Build prompt template system
 - 🔄 Test signal generation (>70% accuracy)
-
 
 ### Sprint 2: Strategy Generation (Week 3-4)
 - [ ] Natural language strategy input UI
@@ -250,13 +310,60 @@ Output: Strategy rotation plan
 - [ ] Multi-exchange support (Kraken, Coinbase direct)
 - [ ] Norsk/Engelsk språkvalg
 - [ ] Mobile app (iOS/Android)
+- [ ] CI/CD pipeline automation
+
+---
+
+## 🚀 Quick Start (For Utviklere)
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+
+- Bitwarden CLI (for secrets)
+- SSH access til Oracle Cloud VM
+
+### Local Development
+```bash
+# Clone repository
+git clone https://github.com/tombomann/klarpakke.git
+cd klarpakke
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env
+# Edit .env med dine API keys
+
+# Start development server
+npm run dev
+```
+
+### Deploy to Production
+```bash
+# SSH into Oracle Cloud VM
+ssh -i ~/.ssh/oci_klarpakke opc@129.151.201.41
+
+# Pull latest changes
+git pull origin main
+
+# Install dependencies
+npm install --production
+
+# Restart PM2
+pm2 restart klarpakke
+
+# Check status
+pm2 status
+```
 
 ---
 
 ## 🌍 Målmarked
 
-**Primary:** Norge (2026)
-- 300,000+ crypto investors
+**Primary:** Norge & Global (2026)
+- 300,000+ crypto investors i Norge
+- Global reach via USD pricing
 - Høy digital literacy
 - Sterk demand for automated solutions
 
@@ -281,7 +388,8 @@ Output: Strategy rotation plan
 ### For Utviklere
 - [Perplexity API Docs](https://docs.perplexity.ai/)
 - [Bubble.io Manual](https://manual.bubble.io/)
-- [Freqtrade Strategy Guide](https://www.freqtrade.io/en/stable/strategy-customization/)
+- [Oracle Cloud Documentation](https://docs.oracle.com/en-us/iaas/)
+- [GitHub Repository](https://github.com/tombomann/klarpakke)
 
 ---
 
@@ -319,8 +427,8 @@ Twitter: [@tombomann](https://twitter.com/tombomann)
 
 ## 🚀 Visjon 2026-2030
 
-**2026:** Launch Klarpakke AI - Norge's første AI-powered crypto platform  
-**2027:** Ekspansjon Norden - 10,000+ aktive brukere  
+**2026:** Launch Klarpakke AI - Global AI-powered crypto platform  
+**2027:** 10,000+ aktive brukere globalt  
 **2028:** EU-launch med MiCA compliance  
 **2029:** Multi-asset support (stocks, ETFs, commodities)  
 **2030:** Full autonomy - "Set and forget" wealth management
@@ -330,7 +438,14 @@ Twitter: [@tombomann](https://twitter.com/tombomann)
 > "The best time to plant a tree was 20 years ago. The second best time is now."  
 > **Start din AI-powered crypto journey i dag. 🌱**
 
-## AI & USD-oppdatering
-- USD: Starter $0 / Autopakke $49 / Proffpakke $99.
-- Perplexity endpoint: POST https://api.perplexity.ai/chat/completions (les `.choices[0].message.content`).
-- Bubble API Connector: Use as Action + Private Authorization.
+---
+
+## 📝 Changelog
+
+### January 19, 2026
+- ✅ Infrastructure setup (Oracle Cloud Stockholm)
+- ✅ Database provisioned (PostgreSQL)
+- ✅ Secrets management (Bitwarden + GitHub Secrets)
+- ✅ Updated pricing to USD ($49/$99)
+- ✅ Documented Perplexity API endpoint
+- 🔄 CI/CD pipeline in progress
