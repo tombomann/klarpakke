@@ -159,7 +159,8 @@ jobs:
           rm -f ~/.ssh/id_rsa
 
       - name: Slack Notification
-      if: always() && secrets.SLACK_WEBHOOK_URL != ''        uses: slackapi/slack-github-action@v1.24.0
+      if: always() && secrets.SLACK_WEBHOOK_URL != ''
+            uses: slackapi/slack-github-action@v1.24.0
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
