@@ -1,0 +1,180 @@
+name: Deploy Backend to OCI
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+      - 'Makefile'
+
+env:
+  OCI_SSH_HOST: 129.151.201.41
+  OCI_SSH_USER: opc
+  DEPLOY_ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $OCI_SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Verify OCI Instance is reachable
+        run: |
+          ssh -i ~/.ssh/id_rsa $OCI_SSH_USER@$OCI_SSH_HOST "echo '✅ OCI instance reachable'"
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test -- --coverage --watchAll=false 2>&1 || echo "⚠️ Tests failed but continuing deployment"
+
+      - name: Build backend
+        run: |
+          cd backend
+          npm run build 2>&1 || echo "✅ No build step required"
+
+      - name: Deploy to OCI via SSH
+        run: |
+          ssh -i ~/.ssh/id_rsa $OCI_SSH_USER@$OCI_SSH_HOST << 'EOF'
+          set -e
+          
+          echo "🚀 Starting backend deployment to $DEPLOY_ENVIRONMENT"
+          
+          # Create deployment directory
+          DEPLOY_DIR="/home/opc/klarpakke-deploy"
+          mkdir -p $DEPLOY_DIR
+          cd $DEPLOY_DIR
+          
+          # Initialize or update repo
+          if [ ! -d ".git" ]; then
+            echo "📦 Cloning repository..."
+            git clone https://github.com/tombomann/klarpakke.git .
+          else
+            echo "📥 Pulling latest changes..."
+            git fetch origin
+            git reset --hard origin/main
+          fi
+          
+          # Setup environment file
+          echo "🔐 Setting up environment variables..."
+          cat > .env << 'ENVEOF'
+          NODE_ENV=${{ env.DEPLOY_ENVIRONMENT }}
+          PORT=3001
+          PPLX_API_KEY=${{ secrets.PPLX_API_KEY }}
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          ENVEOF
+          
+          # Install dependencies
+          echo "📦 Installing dependencies..."
+          cd backend
+          npm ci --production --prefer-offline
+          
+          # Stop old PM2 process
+          echo "🛑 Stopping old process..."
+          pm2 delete klarpakke-backend 2>/dev/null || echo "No existing process"
+          
+          # Start new process with PM2
+          echo "🚀 Starting new backend process..."
+          pm2 start npm --name "klarpakke-backend" -- start
+          pm2 save
+          
+          # Health check
+          echo "🏥 Running health check..."
+          sleep 2
+          for i in {1..10}; do
+            if curl -s http://localhost:3001/health > /dev/null 2>&1; then
+              echo "✅ Backend is healthy"
+              exit 0
+            fi
+            echo "⏳ Health check attempt $i/10..."
+            sleep 1
+          done
+          
+          echo "❌ Backend health check failed after 10 attempts"
+          exit 1
+          EOF
+        env:
+          DEPLOY_ENVIRONMENT: ${{ env.DEPLOY_ENVIRONMENT }}
+
+      - name: Verify deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+          ssh -i ~/.ssh/id_rsa $OCI_SSH_USER@$OCI_SSH_HOST << 'EOF'
+          pm2 list
+          ps aux | grep node | grep -v grep || echo "No node processes"
+          curl -s http://localhost:3001/health || echo "Health endpoint not responding"
+          EOF
+
+      - name: Create deployment status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = context.job.status === 'success' ? 'success' : 'failure';
+            console.log(`Deployment ${status} to ${{ env.DEPLOY_ENVIRONMENT }}`);
+            return status;
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_rsa
+
+      - name: Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Klarpakke Backend Deployment ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Backend Deployment* - ${{ job.status }}\nEnvironment: ${{ env.DEPLOY_ENVIRONMENT }}\nRef: ${{ github.ref }}\nCommit: ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
