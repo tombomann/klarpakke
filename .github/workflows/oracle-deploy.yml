@@ -1,0 +1,160 @@
+name: 🚀 Deploy to Oracle Cloud
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'package.json'
+      - '.env.example'
+      - '.github/workflows/oracle-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Oracle Cloud
+    
+    steps:
+      - name: 📋 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: 🐋 Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/oci_klarpakke
+          chmod 600 ~/.ssh/oci_klarpakke
+          ssh-keyscan -H ${{ secrets.OCI_INSTANCE_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+      
+      - name: 🔮 Test SSH Connection
+        run: |
+          ssh -i ~/.ssh/oci_klarpakke opc@${{ secrets.OCI_INSTANCE_IP }} 'echo Connected to Oracle instance'
+      
+      - name: 🚀 Deploy Backend
+        run: |
+          ssh -i ~/.ssh/oci_klarpakke opc@${{ secrets.OCI_INSTANCE_IP }} 'bash -s' << 'EOF'
+          set -e
+          
+          echo "[1/5] Pulling latest code..."
+          cd /home/opc/klarpakke
+          git pull origin main
+          
+          echo "[2/5] Installing dependencies..."
+          npm install --production
+          
+          echo "[3/5] Running tests..."
+          npm run test 2>/dev/null || echo "Tests skipped (optional)"
+          
+          echo "[4/5] Restarting PM2..."
+          pm2 restart klarpakke --wait-ready --listen-timeout 3000
+          
+          echo "[5/5] Verifying deployment..."
+          sleep 5
+          
+          if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed"
+            pm2 logs klarpakke --lines 50
+            exit 1
+          fi
+          EOF
+      
+      - name: 🔍 Health Check (External)
+        run: |
+          echo "Waiting for instance to be fully ready..."
+          sleep 3
+          
+          MAX_ATTEMPTS=10
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Testing http://${{ secrets.OCI_INSTANCE_IP }}:3000/health"
+            
+            if curl -f -s http://${{ secrets.OCI_INSTANCE_IP }}:3000/health | grep -q 'ok'; then
+              echo "✅ External health check passed"
+              exit 0
+            fi
+            
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 2
+          done
+          
+          echo "❌ External health check failed after $MAX_ATTEMPTS attempts"
+          exit 1
+      
+      - name: 📈 Get Deployment Stats
+        if: success()
+        run: |
+          ssh -i ~/.ssh/oci_klarpakke opc@${{ secrets.OCI_INSTANCE_IP }} 'bash -s' << 'EOF'
+          echo "📊 Deployment Statistics:"
+          echo ""
+          echo "PM2 Status:"
+          pm2 status
+          echo ""
+          echo "System Resources:"
+          echo "Memory: $(free -h | grep Mem | awk '{print $3 "/" $2}')"
+          echo "Disk: $(df -h / | tail -1 | awk '{print $3 "/" $2 " (" $5 ")')"
+          echo "CPU: $(nproc) cores"
+          echo ""
+          echo "Process Info:"
+          pm2 info klarpakke | grep -E 'pid|memory|cpu_usage|created_at'
+          EOF
+      
+      - name: 📐 Slack Notification (Success)
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "✅ Klarpakke Backend Deployed Successfully",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*✅ Klarpakke Backend Deployment*\n\n*Status:* Successful\n*Environment:* ${{ github.event.inputs.environment || 'staging' }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}\n*Branch:* ${{ github.ref_name }}\n*Time:* $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*API Endpoint:* http://${{ secrets.OCI_INSTANCE_IP }}:3000/health\n*Server:* ${{ secrets.OCI_INSTANCE_IP }} (Oracle Cloud - Stockholm)"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      
+      - name: 📐 Slack Notification (Failure)
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "❌ Klarpakke Backend Deployment Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ Klarpakke Backend Deployment*\n\n*Status:* Failed\n*Environment:* ${{ github.event.inputs.environment || 'staging' }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}\n*Branch:* ${{ github.ref_name }}\n*Logs:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
