@@ -1,62 +1,20 @@
-name: Deploy to OCI
-
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
+name: Auto Deploy to Oracle VM
+on: [push]
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    env:
-      OCI_CLI_TENANCY:   ${{ secrets.OCI_CLI_TENANCY }}
-      OCI_CLI_USER:      ${{ secrets.OCI_CLI_USER }}
-      OCI_CLI_REGION:    ${{ secrets.OCI_CLI_REGION }}
-      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
-      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install OCI CLI
-        run: |
-          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
-          chmod +x install.sh
-          ./install.sh --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Configure OCI CLI
-        run: |
-          mkdir -p ~/.oci
-          cat > ~/.oci/config <<EOF
-[DEFAULT]
-user=${OCI_CLI_USER}
-fingerprint=${OCI_CLI_FINGERPRINT}
-tenancy=${OCI_CLI_TENANCY}
-region=${OCI_CLI_REGION}
-key_file=${HOME}/.oci/oci_api_key.pem
-EOF
-          printf '%s\n' "$OCI_CLI_KEY_CONTENT" > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/config ~/.oci/oci_api_key.pem
-
-      - name: Verify OCI CLI
-        run: oci os ns get
-
-      - name: Build & test
-        run: |
-          set -e
-          # TODO: tilpass til klarpakke
-          echo "Kjør bygg og tester her"
-
-      - name: Deploy to OCI
-        run: |
-          set -e
-          # TODO: kall ditt faktiske deploy-script
-          # f.eks:
-          # bash scripts/deploy-oci.sh
-          echo "Kjør OCI deployment her"
+    - uses: actions/checkout@v4
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VM_IP }}
+        username: ${{ secrets.VM_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /home/opc/klarpakke || git clone https://github.com/tombomann/klarpakke.git /home/opc/klarpakke
+          cd /home/opc/klarpakke
+          git pull origin main
+          chmod +x scripts/oracle-deploy.sh
+          ./scripts/oracle-deploy.sh
+          pm2 restart all || pm2 start ecosystem.config.js --env production
