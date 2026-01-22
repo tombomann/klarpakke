@@ -1,0 +1,17 @@
+name: Klarpakke Signals
+on:
+  schedule:
+    - cron: '0 10 * * 2'  # Tue 10AM CET
+  workflow_dispatch:  # Manual trigger
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Send BTC Signal
+      run: |
+        curl -X POST "$BUBBLE_URL" \
+          -H "Content-Type: application/json" \
+          -d '{"pair":"BTCUSD","direction":"LONG","confidence":72}'
+      env:
+        BUBBLE_URL: https://tom-58107.bubbleapps.io/version-test/api/1.1/wf/receive_ai_signal
