@@ -1,0 +1,30 @@
+{
+  "name": "klarpakke",
+  "version": "1.0.0",
+  "description": "> **Status:** LOCKED FOR PRODUCTION (V1)   > **Role:** Safety-First Trading System for Retail Investors   > **Key Principle:** Survival > Profit",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tombomann/klarpakke.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tombomann/klarpakke/issues"
+  },
+  "homepage": "https://github.com/tombomann/klarpakke#readme",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1",
+    "puppeteer": "^24.36.0"
+  }
+}

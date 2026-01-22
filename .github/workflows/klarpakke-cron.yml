@@ -1,0 +1,9 @@
+name: Klarpakke Backup Crons
+on:
+  schedule:
+    - cron: '0 10 * * 2'
+jobs:
+  signals:
+    runs-on: ubuntu-latest
+    steps:
+    - run: curl -X POST $MAKE_SIGNALS_WEBHOOK
