@@ -14,4 +14,4 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{"pair":"BTCUSD","direction":"LONG","confidence":72}'
       env:
-        BUBBLE_URL: https://tom-58107.bubbleapps.io/version-test/api/1.1/wf/receive_ai_signal
+        BUBBLE_URL: https://tom-58107.bubbleapps.io/version-test/api/1.1/wf/receive_ai_signal/initialize
