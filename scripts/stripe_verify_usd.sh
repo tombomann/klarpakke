@@ -1,4 +1,4 @@
 #!/bin/bash
-set -e
-echo "🔍 Verifying prices..."
-echo "✅ Verification complete"
+set -euo pipefail
+
+echo "✅ Stripe verify stub (add real logic later)"
