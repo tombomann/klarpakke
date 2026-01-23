@@ -8,7 +8,7 @@ import sys
 import json
 import argparse
 from typing import Dict, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 print("="*70)
 print("💬 SENTIMENT AGGREGATION")
@@ -202,7 +202,7 @@ def main():
     
     # Combine results
     result = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "symbol": args.symbol,
         "sentiment": {
             "reddit": reddit,
