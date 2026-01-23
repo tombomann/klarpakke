@@ -1,3 +1,12 @@
-.env
+# Environment & Secrets
+.env.migration
+.env*
+*.log
+migration-*.log
+
+# OS
 .DS_Store
-klarpakke-trading.bubbleapps.io-credentials.json
+
+# IDE
+.vscode/
+.idea/
