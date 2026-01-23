@@ -21,6 +21,19 @@ cd ~/klarpakke && git pull && bash scripts/master-fix-and-test.sh
 
 ---
 
+## 🆕 **NEW: Advanced Automation**
+
+🎉 **Latest features deployed:**
+
+- 🔐 **GitHub Secrets** - Secure credential management (no more .env files!)
+- 🚨 **Auto-Issue Creation** - Automated debugging when errors occur
+- 📊 **Multi-Strategy Backtesting** - Test 2 strategies in parallel
+- 💬 **Sentiment Aggregation** - Reddit + Twitter sentiment analysis
+
+📚 **[READ THE COMPLETE AUTOMATION GUIDE →](./docs/AUTOMATION-GUIDE.md)**
+
+---
+
 ## 🎯 What is Klarpakke?
 
 Klarpakke is an **automated trading signal analysis system** that:
@@ -33,80 +46,116 @@ Klarpakke is an **automated trading signal analysis system** that:
 
 ### Key Features
 
-✅ **Fully Automated** - Runs every 15 minutes via GitHub Actions  
+✅ **Fully Automated** - Runs every 5 minutes via GitHub Actions  
 ✅ **Risk-Managed** - Configurable approval thresholds (default: 75% confidence)  
 ✅ **Auditable** - Every decision logged with timestamp and reasoning  
 ✅ **Adaptive** - Works with multiple schema variations  
 ✅ **Self-Healing** - Automatic schema cache refresh and error recovery  
 ✅ **Zero-Cost** - Runs on GitHub Actions free tier  
+✅ **Auto-Debugging** - Creates GitHub issues on errors  
+✅ **Sentiment-Aware** - Integrates community sentiment  
 
 ---
 
-## 📋 Quick Reference
+## 📚 Documentation
 
-### For First-Time Setup
+| Guide | Description |
+|-------|-------------|
+| **[🤖 Automation Guide](./docs/AUTOMATION-GUIDE.md)** | **Complete automation framework** |
+| [QUICKSTART.md](./QUICKSTART.md) | Quick reference for common tasks |
+| [README-AUTOMATION.md](./README-AUTOMATION.md) | Legacy automation guide |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Problem solving and diagnostics |
+
+---
+
+## 🛠️ Quick Start
+
+### 1. Setup GitHub Secrets (One-Time)
 
 ```bash
 cd ~/klarpakke
 git pull
-bash scripts/ultimate-setup.sh
+
+# Migrate from .env to GitHub Secrets
+chmod +x scripts/setup-github-secrets.sh
+./scripts/setup-github-secrets.sh
 ```
 
-### For Troubleshooting
+### 2. Test Backtest Framework
 
 ```bash
-cd ~/klarpakke
-git pull
-bash scripts/master-fix-and-test.sh
+python3 scripts/backtest-strategy.py \
+  --strategy conservative \
+  --min-confidence 0.85 \
+  --max-risk 1.0 \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31 \
+  --output results.json
 ```
 
-### For Daily Use
+### 3. Test Sentiment Aggregation
+
+```bash
+python3 scripts/aggregate-sentiment.py \
+  --symbol BTC \
+  --base-confidence 0.75
+```
+
+---
+
+## 📊 Monitoring
+
+### GitHub Actions Workflows
+
+| Workflow | Schedule | Purpose |
+|----------|----------|----------|
+| **[Trading Analysis](https://github.com/tombomann/klarpakke/actions/workflows/trading-with-auto-issue.yml)** | Every 5 min | Analyze signals + auto-issue on error |
+| **[Multi-Strategy Backtest](https://github.com/tombomann/klarpakke/actions/workflows/multi-strategy-backtest.yml)** | Weekly | Compare strategy performance |
+
+### Commands
 
 ```bash
 # Watch live runs
 gh run watch
 
 # List recent runs
-gh run list --workflow="trading-analysis.yml" -L 5
+gh run list -L 5
 
-# Test locally
-python3 scripts/analyze_signals.py
+# Manual trigger
+gh workflow run trading-with-auto-issue.yml
+gh workflow run multi-strategy-backtest.yml
 ```
-
----
-
-## 📖 Documentation
-
-| Guide | Description |
-|-------|-------------|
-| [QUICKSTART.md](./QUICKSTART.md) | Quick reference for common tasks |
-| [README-AUTOMATION.md](./README-AUTOMATION.md) | Complete automation guide |
-| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Problem solving and diagnostics |
 
 ---
 
 ## 🔧 Available Scripts
 
-### 🎯 Setup & Configuration
-
-| Script | Purpose | When to Use |
-|--------|---------|-------------|
-| `master-fix-and-test.sh` | **⭐ RECOMMENDED** - Automatic fix & test | Always start here |
-| `ultimate-setup.sh` | Full end-to-end setup | First time setup |
-| `fix-schema-cache.py` | Fix REST API schema cache | Column not found errors |
-| `adaptive-insert-signal.py` | Smart signal insert | Insert test signals |
-
-### 🧪 Debug & Analysis
+### 🔐 Security & Setup
 
 | Script | Purpose |
 |--------|----------|
-| `debug-aisignal.py` | Show all table contents |
-| `analyze_signals.py` | Run analysis pipeline |
-| `sync-secrets.sh` | Sync .env ↔️ GitHub Secrets |
+| `setup-github-secrets.sh` | Migrate .env → GitHub Secrets |
+| `master-fix-and-test.sh` | Auto-fix database + test |
+| `ultimate-setup.sh` | Full end-to-end setup |
 
-### Full Script List
+### 📊 Analysis & Backtesting
 
-See [README-AUTOMATION.md](./README-AUTOMATION.md#-tilgjengelige-scripts) for complete list
+| Script | Purpose |
+|--------|----------|
+| `analyze_signals.py` | Core analysis logic |
+| `backtest-strategy.py` | Backtest single strategy |
+| `aggregate-backtest-results.py` | Compare strategy results |
+| `aggregate-sentiment.py` | Fetch Reddit/Twitter sentiment |
+
+### 🐛 Debug & Diagnostics
+
+| Script | Purpose |
+|--------|----------|
+| `debug-aisignal.py` | Show table contents |
+| `fix-schema-cache.py` | Fix PostgREST cache |
+| `adaptive-insert-signal.py` | Smart test signal insert |
+
+**Full reference:** [docs/AUTOMATION-GUIDE.md#-scripts-reference](./docs/AUTOMATION-GUIDE.md#-scripts-reference)
 
 ---
 
@@ -126,11 +175,12 @@ See [README-AUTOMATION.md](./README-AUTOMATION.md#-tilgjengelige-scripts) for co
 │   status = 'PENDING'    │
 └────────┬────────────────┘
          │
-         │ every 15 min
+         │ every 5 min
          ↓
 ┌────────┴────────────────┐
 │  GitHub Actions         │
-│  analyze_signals.py     │
+│  + Auto-Issue on Error  │ ← NEW!
+│  + Sentiment Boost      │ ← NEW!
 │  - Fetch PENDING        │
 │  - Analyze confidence   │
 │  - Approve/Reject       │
@@ -156,97 +206,48 @@ See [README-AUTOMATION.md](./README-AUTOMATION.md#-tilgjengelige-scripts) for co
 
 ---
 
-## 🔑 Configuration
+## 📊 New Features Explained
 
-### Approval Thresholds
+### 🔐 GitHub Secrets
 
-Edit `scripts/analyze_signals.py`:
-
-```python
-if confidence_score >= 75:        # High confidence
-    decision = "APPROVED"
-elif confidence_score >= 60:      # Medium confidence
-    decision = "PENDING"         # Needs manual review
-else:                              # Low confidence
-    decision = "REJECTED"
-```
-
-### Workflow Schedule
-
-Edit `.github/workflows/trading-analysis.yml`:
-
-```yaml
-schedule:
-  - cron: '*/15 * * * *'  # Every 15 minutes
-  # Options:
-  # - '*/5 * * * *'      # Every 5 minutes
-  # - '0 * * * *'        # Every hour
-  # - '0 9-17 * * 1-5'   # 9am-5pm Mon-Fri
-```
-
----
-
-## 🔄 Workflow
-
-### 1. Signal Creation
-
-```sql
--- Example: Create signal in Supabase
-INSERT INTO aisignal (
-  pair, 
-  signal_type, 
-  confidence_score, 
-  status
-) VALUES (
-  'BTCUSDT',  -- Trading pair
-  'BUY',       -- BUY or SELL
-  80,          -- 0-100 confidence
-  'PENDING'    -- Initial status
-);
-```
-
-### 2. Automatic Analysis
-
-GitHub Actions runs every 15 minutes:
+**Before:** Secrets in `.env` files (security risk)  
+**After:** Encrypted GitHub Secrets (secure, audited)
 
 ```bash
-# Fetches PENDING signals
-# Analyzes confidence_score
-# Updates status to APPROVED/REJECTED
-# Logs reasoning
+# One-time migration
+./scripts/setup-github-secrets.sh
 ```
 
-### 3. Review Results
+### 🚨 Auto-Issue on Errors
 
-```sql
--- Check approved signals
-SELECT 
-  pair,
-  signal_type,
-  confidence_score,
-  status,
-  approved_by,
-  approved_at,
-  reasoning
-FROM aisignal 
-WHERE status = 'APPROVED'
-ORDER BY approved_at DESC;
+**When a workflow fails:**
+1. Captures full error log
+2. Creates GitHub issue automatically
+3. Includes debugging checklist
+4. Auto-assigns to you
+
+**No more silent failures!**
+
+### 📊 Multi-Strategy Backtesting
+
+**Test multiple strategies in parallel:**
+- Conservative (70% winrate, 1.5x R)
+- Moderate (65% winrate, 2.0x R)
+
+```bash
+gh workflow run multi-strategy-backtest.yml
 ```
 
----
+### 💬 Sentiment Aggregation
 
-## 📊 Monitoring
+**Boost AI confidence with community sentiment:**
 
-### GitHub Actions
-
-- **Live dashboard:** [Actions Tab](https://github.com/tombomann/klarpakke/actions)
-- **Watch live:** `gh run watch`
-- **View logs:** `gh run view --log`
-
-### Supabase
-
-- **Table Editor:** [Database](https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/editor)
-- **SQL Editor:** [SQL](https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/sql/new)
+```
+AI: 75% confidence
++ Reddit: 82% bullish
++ Twitter: 78% bullish
+= Adjusted: 81% confidence ✅
+```
 
 ---
 
@@ -254,11 +255,12 @@ ORDER BY approved_at DESC;
 
 Your system is working when:
 
-- [ ] `bash scripts/master-fix-and-test.sh` completes successfully
-- [ ] `python3 scripts/analyze_signals.py` processes signals
-- [ ] GitHub Actions workflow shows green checkmark
-- [ ] Supabase table updates (status changes)
-- [ ] Approved signals have `approved_by` and `reasoning` filled
+- [ ] `bash scripts/setup-github-secrets.sh` completes
+- [ ] `gh secret list` shows secrets uploaded
+- [ ] `gh workflow run trading-with-auto-issue.yml` succeeds
+- [ ] `gh workflow run multi-strategy-backtest.yml` generates report
+- [ ] Errors auto-create GitHub issues
+- [ ] Backtest results saved to artifacts
 
 ---
 
@@ -285,60 +287,16 @@ python3 scripts/debug-aisignal.py
 - **Database:** Supabase (PostgreSQL)
 - **CI/CD:** GitHub Actions
 - **Language:** Python 3
-- **Frontend:** Webflow (optional)
+- **Secrets:** GitHub Secrets (encrypted)
 - **Automation:** Make.com (optional)
-- **AI:** Perplexity + Claude (signal generation)
-
----
-
-## 📂 Project Structure
-
-```
-klarpakke/
-├── scripts/
-│   ├── master-fix-and-test.sh      # ⭐ START HERE
-│   ├── ultimate-setup.sh           # Full setup
-│   ├── analyze_signals.py          # Core analysis logic
-│   ├── fix-schema-cache.py         # Schema fixes
-│   ├── adaptive-insert-signal.py   # Smart insert
-│   ├── debug-aisignal.py           # Diagnostics
-│   └── sync-secrets.sh             # GitHub secrets
-├── schema/
-│   ├── supabase-core.sql           # Base schema
-│   └── migrations/                 # Schema updates
-├── .github/workflows/
-│   └── trading-analysis.yml        # CI/CD pipeline
-├── README.md                       # This file
-├── README-AUTOMATION.md            # Full automation guide
-├── QUICKSTART.md                   # Quick reference
-└── TROUBLESHOOTING.md              # Problem solving
-```
-
----
-
-## 🚀 Next Steps
-
-1. **Run full test:**
-   ```bash
-   cd ~/klarpakke && git pull && bash scripts/master-fix-and-test.sh
-   ```
-
-2. **Watch it work:**
-   ```bash
-   gh run watch
-   ```
-
-3. **Customize thresholds:**
-   Edit `scripts/analyze_signals.py`
-
-4. **Add Make.com integration:**
-   See [README-AUTOMATION.md](./README-AUTOMATION.md)
+- **AI:** Perplexity + Claude
+- **Sentiment:** Reddit + Twitter APIs
 
 ---
 
 ## 📚 Learn More
 
-- [Full Automation Guide](./README-AUTOMATION.md)
+- **[🤖 Complete Automation Guide](./docs/AUTOMATION-GUIDE.md)** ← START HERE!
 - [Quick Reference](./QUICKSTART.md)
 - [Troubleshooting](./TROUBLESHOOTING.md)
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
@@ -346,10 +304,32 @@ klarpakke/
 
 ---
 
-**Ready? Let's get started!**
+## 🚀 Next Steps
+
+1. **Setup GitHub Secrets:**
+   ```bash
+   ./scripts/setup-github-secrets.sh
+   ```
+
+2. **Run backtest:**
+   ```bash
+   gh workflow run multi-strategy-backtest.yml
+   ```
+
+3. **Watch it work:**
+   ```bash
+   gh run watch
+   ```
+
+4. **Read the full guide:**
+   [docs/AUTOMATION-GUIDE.md](./docs/AUTOMATION-GUIDE.md)
+
+---
+
+**Ready? Let's get automated!**
 
 ```bash
-cd ~/klarpakke && bash scripts/master-fix-and-test.sh
+cd ~/klarpakke && git pull && ./scripts/setup-github-secrets.sh
 ```
 
-🚀 **Klarpakke** - Enkel, risikostyrt, etterprøvbar trading for småsparere
+🚀 **Klarpakke** - Automated, transparent, risk-managed trading
