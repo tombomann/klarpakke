@@ -1,0 +1,16 @@
+{
+  "name": "Klarpakke: Signal Approve",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:WebhookRespond"
+    },
+    {
+      "id": 2,
+      "module": "supabase:Select",
+      "mapper": {
+        "table": "aisignal"
+      }
+    }
+  ]
+}
