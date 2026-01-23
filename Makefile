@@ -33,3 +33,11 @@ docs-ai:
 	@echo "Docs available in docs/ai/"
 bubble-log:
 	echo "DB ready - sett DATABASE_URL for Bubble log"
+bubble-log-ready:
+	@if [ -n "${DATABASE_URL:-}" ]; then \
+		psql "$$DATABASE_URL" -f bubble-schema.sql && \
+		psql "$$DATABASE_URL" -c "INSERT INTO AICallLog (pair, signal) VALUES (\"BTCUSD\", \"auto\");" && \
+		echo "✅ Bubble DB synced!"; \
+	else \
+		echo "DB ready - export DATABASE_URL=..."; \
+	fi
