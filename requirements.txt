@@ -1,0 +1,24 @@
+# Klarpakke Trading Bot Requirements
+
+# Supabase client
+supabase==2.3.4
+
+# HTTP requests
+requests==2.31.0
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Date/time utilities
+python-dateutil==2.8.2
+
+# JSON processing (built-in, but explicit)
+# json - standard library
+
+# PostgreSQL adapter (for direct DB access)
+psycopg2-binary==2.9.9
+
+# Optional: Future sentiment analysis
+# praw==7.7.1  # Reddit API
+# tweepy==4.14.0  # Twitter API
+# transformers==4.36.2  # Sentiment analysis
