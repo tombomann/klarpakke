@@ -1,17 +1,20 @@
-# Klarpakke Bootstrap Script
-
+#!/bin/bash
 set -euo pipefail
 
-# Kjør: bash scripts/klarpakke-bootstrap.sh --dry-run
+# Updated bootstrap with secrets cleanup
+DRY_RUN=${1:---dry-run}
 
-if [[ "$1" == "--dry-run" ]]; then
+if [[ "$DRY_RUN" == "--dry-run" ]]; then
   echo "DRY-RUN: Validating plan..."
-  grep -R 'pplx-' . && echo '❌ Secrets found' || echo '✅ No secrets leaked'
+  # Clean first (ignore errors)
+  bash scripts/clean_secrets.sh || true
+  grep -R 'pplx-' . && echo '❌ Secrets found (after cleanup)' || echo '✅ No secrets leaked'
   make ai-test || echo '⚠️ AI test failed - fix PPLX_API_KEY'
   exit 0
 fi
 
-# Real run: generate files, validate
+# Real run
+bash scripts/clean_secrets.sh
 make stripe-seed-usd
 make ai-test
 grep -R 'sk_live' . && exit 1 || true
