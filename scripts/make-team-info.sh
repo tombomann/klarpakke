@@ -9,7 +9,7 @@ if [[ -z "$MAKE_TOKEN" ]]; then
 fi
 
 resp=$(curl -s -w '\nHTTP: %{http_code}' -H "Authorization: Bearer $MAKE_TOKEN" \
-  https://api.make.com/v2/teams | jq -e '.')
+  https://api.make.com/v2/teams | jq -e ". // empty")
 
 if [[ $? -ne 0 ]]; then
   echo "❌ Make API error"
