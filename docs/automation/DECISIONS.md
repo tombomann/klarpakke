@@ -15,3 +15,7 @@
 ## Heredoc-standard
 - Bruk quoted delimiter: `<< 'EOF'` for å unngå lokal ekspansjon/substitution.
 - EOF-linjen må stå alene uten whitespace.
+
+## Curl Standard (permanent)
+- source scripts/curl-safe.bash i alle scripts
+- USERS=$(curl_safe URL -H ...)
