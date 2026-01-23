@@ -1,0 +1,5 @@
+TITLE=fix: curl_safe v3 simple
+BASE=main
+BRANCH=auto/klarpakke-20260123-150041
+REMOTE=https://github.com/tombomann/klarpakke.git
+REPO_SLUG=tombomann/klarpakke
