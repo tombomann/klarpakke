@@ -1,0 +1,5 @@
+TITLE=test: API standard (raw curl + jq)
+BASE=main
+BRANCH=auto/klarpakke-20260123-150358
+REMOTE=https://github.com/tombomann/klarpakke.git
+REPO_SLUG=tombomann/klarpakke
