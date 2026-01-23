@@ -112,3 +112,21 @@ Før en trade legges, sjekker systemet:
 *   [ ] **Trafikklys-Dashboard:** UI som viser status (Normal / Soft Stop / Hard Stop).
 *   [ ] **Onboarding:** Tvungen 7-dagers "Signal-Only" flyt.
 *   [ ] **Rapportering:** PDF-generering av ukesrapport.
+
+## 🚀 Setup Status
+
+### ✅ Completed
+- [x] Supabase `api` schema created
+- [x] RLS policies configured
+- [x] Make.com scenarios automated
+- [x] API test scripts
+
+### 🔄 In Progress
+- [ ] AI Agent configuration
+- [ ] End-to-end testing
+- [ ] Webflow integration
+
+### 📋 Next Steps
+1. Configure Make.com AI Agent
+2. Connect scenarios to agent
+3. Test signal approval flow
