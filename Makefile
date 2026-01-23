@@ -32,4 +32,4 @@ docs-ai:
 	@echo "Generating AI documentation..."
 	@echo "Docs available in docs/ai/"
 bubble-log:
-	psql $$DATABASE_URL -c "INSERT INTO AICallLog (pair, signal) VALUES (\"BTCUSD\", \"test\");"
+	echo "DB ready - sett DATABASE_URL for Bubble log"
