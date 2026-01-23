@@ -58,11 +58,15 @@ print()
 # Step 2: Build signal data based on available columns
 print("2️⃣  Building signal data...")
 
-# All possible field mappings
+# All possible field mappings (with prices included)
 field_options = [
-    # Modern schema
+    # Modern schema with prices
+    {"pair": "BTCUSDT", "signal_type": "BUY", "entry_price": 50000, "stop_loss": 49000, "take_profit": 52000, "confidence_score": 80, "status": "PENDING"},
+    # Legacy schema with prices
+    {"symbol": "BTCUSDT", "direction": "LONG", "entry_price": 50000, "stop_loss": 49000, "take_profit": 52000, "confidence": 0.80, "status": "pending"},
+    # Modern without prices
     {"pair": "BTCUSDT", "signal_type": "BUY", "confidence_score": 80, "status": "PENDING"},
-    # Legacy schema
+    # Legacy without prices
     {"symbol": "BTCUSDT", "direction": "LONG", "confidence": 0.80, "status": "pending"},
     # Minimal modern
     {"pair": "BTCUSDT", "signal_type": "BUY", "status": "PENDING"},
@@ -158,15 +162,15 @@ print("="*70)
 print()
 print("🚨 Manual intervention required:")
 print()
-print("Option 1 - Run schema fix:")
-print("   python3 scripts/fix-schema-cache.py")
+print("Option 1 - Run emergency cleanup:")
+print("   python3 scripts/emergency-clean-duplicates.py")
 print()
 print("Option 2 - Manual SQL insert:")
 print("   open https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/sql/new")
 print()
 print("   Run this SQL:")
-print("   INSERT INTO aisignal (pair, signal_type, status)")
-print("   VALUES ('BTCUSDT', 'BUY', 'PENDING');")
+print("   INSERT INTO aisignal (symbol, direction, entry_price, confidence, status)")
+print("   VALUES ('BTCUSDT', 'LONG', 50000, 0.80, 'pending');")
 print()
 print("Option 3 - Check database schema:")
 print("   python3 scripts/debug-aisignal.py")
