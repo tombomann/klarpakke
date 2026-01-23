@@ -1,132 +1,355 @@
-# KLARPAKKE V1: MASTER ARCHITECTURE & PRODUCTION SPEC
+# 📊 Klarpakke - Intelligent Trading Signal Analysis
 
-> **Status:** LOCKED FOR PRODUCTION (V1)  
-> **Role:** Safety-First Trading System for Retail Investors  
-> **Key Principle:** Survival > Profit
+> Automated, risk-managed trading signal analysis for small investors
 
----
-
-## 1. Forretningsmodell & Prising
-Modellen følger industristandard (SaaS/Bot-plattform) med feature-gating basert på risiko og kompleksitet.
-
-### Gratis (Education Mode)
-*   **Formål:** Læring uten risiko. Ingen execution-risiko for bruker eller plattform.
-*   **Innhold:** Akademi, Papir-portefølje (simulert), Ukentlig markedsrapport.
-*   **Begrensning:** Ingen API-nøkler kan lagres. Ingen "live" handel.
-
-### Pro — $49/mnd (Execution)
-*   **Formål:** For brukeren som er klar, men trenger stramme rammer.
-*   **Execution:** Binance Spot (Auto-Exec).
-*   **Kapasitet:** 1 Strategi, 1 Portefølje.
-*   **Sikkerhet:** Full risikomotor + "Hard Stop Nå" knapp.
-*   **Krav:** 7 dagers obligatorisk "Signal-Only" (kjøleperiode) før første handel.
-
-### Elite — $99/mnd (Scale & Diversify)
-*   **Formål:** For viderekomne som vil spre risiko.
-*   **Execution:** Binance Spot + Crypto.com (når V1.1 KPI-gate er bestått).
-*   **Kapasitet:** Opptil 3 Porteføljer (f.eks. BTC-fokus + Top10-mix).
-*   **Data:** Avansert KPI-dashboard (Slippage, Latency, Blocked Reasons).
-*   **Rabatt:** Årlig betaling gir 2 måneder gratis (~16% rabatt).
+[![Trading Analysis](https://github.com/tombomann/klarpakke/actions/workflows/trading-analysis.yml/badge.svg)](https://github.com/tombomann/klarpakke/actions/workflows/trading-analysis.yml)
 
 ---
 
-## 2. Risikomotor (Core Logic)
-Reglene under er hardkodet i "Grønn Profil" (Standard) og kan ikke overstyres av brukeren.
+## 🚀 **ONE-COMMAND SETUP**
 
-### Grenseverdier (Låst)
-| Type | Trigger (Drawdown) | Konsekvens |
-| :--- | :--- | :--- |
-| **Soft Stop** | -2% (Dag) / -5% (Uke) | **Signal-Only:** Nye kjøp blokkeres. Eksisterende posisjoner håndteres (Exit only). |
-| **Hard Stop** | -4% (Dag) / -8% (Uke) | **Kill-Switch:** Alle Klarpakke-posisjoner selges umiddelbart. |
+```bash
+cd ~/klarpakke && git pull && bash scripts/master-fix-and-test.sh
+```
 
-*   **Eksponering:** Maks 2 åpne posisjoner totalt. Maks 1 posisjon per coin.
-*   **Risk per Trade:** Hard cap på 0,25% av equity (stop-loss avstand).
-
-### Kill-Switch ("Hard Stop Nå")
-En fysisk, rød knapp i UI + automatisk trigger ved Hard Stop.
-1.  **Block:** Konto settes umiddelbart til `Close-Only`.
-2.  **Clean-up:** API sender `Cancel All Open Orders` (fjerner "støy" i ordreboken).
-3.  **Safety Window:** 60 sekunders nedtelling i app (bruker kan avbryte).
-4.  **Terminate:** Systemet sender `Market Sell` på alle posisjoner merket med `tag:Klarpakke`.
-    *   *Note:* Rører aldri brukerens manuelle posisjoner utenfor Klarpakke-systemet.
+**This automatically:**
+- ✅ Fixes database schema
+- ✅ Discovers working configuration  
+- ✅ Inserts test signal
+- ✅ Tests analysis pipeline
+- ✅ Reports full status
 
 ---
 
-## 3. Univers & Datakilder (Deterministisk)
-For å sikre etterprøvbarhet (audit), er handelsuniverset låst per uke.
+## 🎯 What is Klarpakke?
 
-### Kilde & Filter
-*   **API:** CoinMarketCap (`/cryptocurrency/listings/latest`).
-*   **Filter-logikk (Kjøres søndag kl 23:59 UTC):**
-    1.  Hent Top 50 etter Market Cap.
-    2.  Fjern Stablecoins (USDT, USDC, FDUSD, etc.).
-    3.  **Likviditetsfilter:** Fjern coins med < $50M volum siste 24t.
-    4.  Behold Top 10 av gjenværende liste.
-*   **Resultat:** Listen lagres som `Universe_Version_YYYY_WW` og fryses for hele neste uke.
+Klarpakke is an **automated trading signal analysis system** that:
 
-### Whitelist per Børs
-Før en trade legges, sjekker systemet:
-`Er coin i Univers?` **AND** `Finnes paret på Børs?` **AND** `Støtter paret API-basert Stop-Loss?`
-*   Hvis **NEI**: Signalet blokkeres og logges med årsakskode (f.eks. `BLOCKED_CAPABILITY`).
+1. **Receives** AI-generated trading signals (via Webflow/Bubble/API)
+2. **Analyzes** signals based on confidence scores and risk parameters
+3. **Approves/Rejects** automatically using configurable thresholds
+4. **Logs** all decisions with reasoning for audit trail
+5. **Executes** approved trades (via Make.com integration - optional)
 
----
+### Key Features
 
-## 4. Børsstrategi & Execution
-
-### V1: Binance (Spot)
-*   **Status:** Primary Execution Venue.
-*   **Krav:** Bruker må ha API-nøkkel med "Enable Spot & Margin Trading" (Ingen withdrawals).
-*   **Cash Buffer:** USDC (Anbefalt) eller USDT (Tillatt med advarsel).
-
-### V1.1: Crypto.com (Exchange)
-*   **Fase 1:** Read-Only (Import av saldo) ved V1 lansering.
-*   **Fase 2:** Execution aktiveres kun når interne KPI-er er møtt:
-    *   Order Reject Rate < 1% (7 dager snitt).
-    *   API Latency < 2 sekunder (P95).
+✅ **Fully Automated** - Runs every 15 minutes via GitHub Actions  
+✅ **Risk-Managed** - Configurable approval thresholds (default: 75% confidence)  
+✅ **Auditable** - Every decision logged with timestamp and reasoning  
+✅ **Adaptive** - Works with multiple schema variations  
+✅ **Self-Healing** - Automatic schema cache refresh and error recovery  
+✅ **Zero-Cost** - Runs on GitHub Actions free tier  
 
 ---
 
-## 5. Teknisk Arkitektur & Stack
+## 📋 Quick Reference
 
-*   **Frontend/Logic:** **Bubble.io**
-    *   Håndterer bruker, Stripe-abonnement, risikoregler, dashboard og varsling.
-*   **Execution Layer:** **Python / AWS Lambda**
-    *   Mellomlag som kalles av Bubble for tunge operasjoner.
-    *   Ansvar: Ordre-ruting, Kill-Switch sekvensering ("Cancel -> Sell -> Confirm").
-*   **Database:**
-    *   **Bubble DB:** Brukerdata, porteføljestatus.
-    *   **Audit Log (PostgreSQL):** Uforanderlig logg av alle signaler og ordre for etterprøvbarhet.
+### For First-Time Setup
+
+```bash
+cd ~/klarpakke
+git pull
+bash scripts/ultimate-setup.sh
+```
+
+### For Troubleshooting
+
+```bash
+cd ~/klarpakke
+git pull
+bash scripts/master-fix-and-test.sh
+```
+
+### For Daily Use
+
+```bash
+# Watch live runs
+gh run watch
+
+# List recent runs
+gh run list --workflow="trading-analysis.yml" -L 5
+
+# Test locally
+python3 scripts/analyze_signals.py
+```
 
 ---
 
-## 6. Roadmap & Implementering
+## 📖 Documentation
 
-### Sprint 1: The Safety Rails (Uke 1-2)
-*   [ ] **CMC Univers-motor:** Jobb som genererer ukens `Universe_Version`.
-*   [ ] **Kill-Switch Logic:** Python-script for `Cancel All` + `Market Close`.
-*   [ ] **Bubble DB:** Implementere "Grønn Profil" regler og grenseverdier.
-*   [ ] **Stripe:** Oppsett av produkter (Gratis/Pro/Elite) og Webhooks.
+| Guide | Description |
+|-------|-------------|
+| [QUICKSTART.md](./QUICKSTART.md) | Quick reference for common tasks |
+| [README-AUTOMATION.md](./README-AUTOMATION.md) | Complete automation guide |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Problem solving and diagnostics |
 
-### Sprint 2: UX & Execution (Uke 3-4)
-*   [ ] **Binance Adapter:** Kobling for Pro-brukere (Spot API).
-*   [ ] **Trafikklys-Dashboard:** UI som viser status (Normal / Soft Stop / Hard Stop).
-*   [ ] **Onboarding:** Tvungen 7-dagers "Signal-Only" flyt.
-*   [ ] **Rapportering:** PDF-generering av ukesrapport.
+---
 
-## 🚀 Setup Status
+## 🔧 Available Scripts
 
-### ✅ Completed
-- [x] Supabase `api` schema created
-- [x] RLS policies configured
-- [x] Make.com scenarios automated
-- [x] API test scripts
+### 🎯 Setup & Configuration
 
-### 🔄 In Progress
-- [ ] AI Agent configuration
-- [ ] End-to-end testing
-- [ ] Webflow integration
+| Script | Purpose | When to Use |
+|--------|---------|-------------|
+| `master-fix-and-test.sh` | **⭐ RECOMMENDED** - Automatic fix & test | Always start here |
+| `ultimate-setup.sh` | Full end-to-end setup | First time setup |
+| `fix-schema-cache.py` | Fix REST API schema cache | Column not found errors |
+| `adaptive-insert-signal.py` | Smart signal insert | Insert test signals |
 
-### 📋 Next Steps
-1. Configure Make.com AI Agent
-2. Connect scenarios to agent
-3. Test signal approval flow
+### 🧪 Debug & Analysis
+
+| Script | Purpose |
+|--------|----------|
+| `debug-aisignal.py` | Show all table contents |
+| `analyze_signals.py` | Run analysis pipeline |
+| `sync-secrets.sh` | Sync .env ↔️ GitHub Secrets |
+
+### Full Script List
+
+See [README-AUTOMATION.md](./README-AUTOMATION.md#-tilgjengelige-scripts) for complete list
+
+---
+
+## ⚙️ System Architecture
+
+```
+┌─────────────────────────┐
+│  AI Signal Generation   │
+│  (Perplexity + Claude)  │
+└────────┬────────────────┘
+         │
+         │ webhook/API
+         ↓
+┌────────┴────────────────┐
+│   Supabase Database     │
+│   (aisignal table)      │
+│   status = 'PENDING'    │
+└────────┬────────────────┘
+         │
+         │ every 15 min
+         ↓
+┌────────┴────────────────┐
+│  GitHub Actions         │
+│  analyze_signals.py     │
+│  - Fetch PENDING        │
+│  - Analyze confidence   │
+│  - Approve/Reject       │
+│  - Log reasoning        │
+└────────┬────────────────┘
+         │
+         │ update status
+         ↓
+┌────────┴────────────────┐
+│   Supabase Database     │
+│   status = 'APPROVED'   │
+│   approved_by = 'gh...' │
+│   reasoning = '...'     │
+└────────┬────────────────┘
+         │
+         │ webhook (optional)
+         ↓
+┌────────┴────────────────┐
+│   Make.com Automation   │
+│   Execute Trade         │
+└─────────────────────────┘
+```
+
+---
+
+## 🔑 Configuration
+
+### Approval Thresholds
+
+Edit `scripts/analyze_signals.py`:
+
+```python
+if confidence_score >= 75:        # High confidence
+    decision = "APPROVED"
+elif confidence_score >= 60:      # Medium confidence
+    decision = "PENDING"         # Needs manual review
+else:                              # Low confidence
+    decision = "REJECTED"
+```
+
+### Workflow Schedule
+
+Edit `.github/workflows/trading-analysis.yml`:
+
+```yaml
+schedule:
+  - cron: '*/15 * * * *'  # Every 15 minutes
+  # Options:
+  # - '*/5 * * * *'      # Every 5 minutes
+  # - '0 * * * *'        # Every hour
+  # - '0 9-17 * * 1-5'   # 9am-5pm Mon-Fri
+```
+
+---
+
+## 🔄 Workflow
+
+### 1. Signal Creation
+
+```sql
+-- Example: Create signal in Supabase
+INSERT INTO aisignal (
+  pair, 
+  signal_type, 
+  confidence_score, 
+  status
+) VALUES (
+  'BTCUSDT',  -- Trading pair
+  'BUY',       -- BUY or SELL
+  80,          -- 0-100 confidence
+  'PENDING'    -- Initial status
+);
+```
+
+### 2. Automatic Analysis
+
+GitHub Actions runs every 15 minutes:
+
+```bash
+# Fetches PENDING signals
+# Analyzes confidence_score
+# Updates status to APPROVED/REJECTED
+# Logs reasoning
+```
+
+### 3. Review Results
+
+```sql
+-- Check approved signals
+SELECT 
+  pair,
+  signal_type,
+  confidence_score,
+  status,
+  approved_by,
+  approved_at,
+  reasoning
+FROM aisignal 
+WHERE status = 'APPROVED'
+ORDER BY approved_at DESC;
+```
+
+---
+
+## 📊 Monitoring
+
+### GitHub Actions
+
+- **Live dashboard:** [Actions Tab](https://github.com/tombomann/klarpakke/actions)
+- **Watch live:** `gh run watch`
+- **View logs:** `gh run view --log`
+
+### Supabase
+
+- **Table Editor:** [Database](https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/editor)
+- **SQL Editor:** [SQL](https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/sql/new)
+
+---
+
+## ✅ Success Checklist
+
+Your system is working when:
+
+- [ ] `bash scripts/master-fix-and-test.sh` completes successfully
+- [ ] `python3 scripts/analyze_signals.py` processes signals
+- [ ] GitHub Actions workflow shows green checkmark
+- [ ] Supabase table updates (status changes)
+- [ ] Approved signals have `approved_by` and `reasoning` filled
+
+---
+
+## 🐛 Troubleshooting
+
+**Having issues?** See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+
+**Quick fixes:**
+```bash
+# Fix everything automatically
+bash scripts/master-fix-and-test.sh
+
+# Fix schema cache
+python3 scripts/fix-schema-cache.py
+
+# Debug table state
+python3 scripts/debug-aisignal.py
+```
+
+---
+
+## 🛠️ Tech Stack
+
+- **Database:** Supabase (PostgreSQL)
+- **CI/CD:** GitHub Actions
+- **Language:** Python 3
+- **Frontend:** Webflow (optional)
+- **Automation:** Make.com (optional)
+- **AI:** Perplexity + Claude (signal generation)
+
+---
+
+## 📂 Project Structure
+
+```
+klarpakke/
+├── scripts/
+│   ├── master-fix-and-test.sh      # ⭐ START HERE
+│   ├── ultimate-setup.sh           # Full setup
+│   ├── analyze_signals.py          # Core analysis logic
+│   ├── fix-schema-cache.py         # Schema fixes
+│   ├── adaptive-insert-signal.py   # Smart insert
+│   ├── debug-aisignal.py           # Diagnostics
+│   └── sync-secrets.sh             # GitHub secrets
+├── schema/
+│   ├── supabase-core.sql           # Base schema
+│   └── migrations/                 # Schema updates
+├── .github/workflows/
+│   └── trading-analysis.yml        # CI/CD pipeline
+├── README.md                       # This file
+├── README-AUTOMATION.md            # Full automation guide
+├── QUICKSTART.md                   # Quick reference
+└── TROUBLESHOOTING.md              # Problem solving
+```
+
+---
+
+## 🚀 Next Steps
+
+1. **Run full test:**
+   ```bash
+   cd ~/klarpakke && git pull && bash scripts/master-fix-and-test.sh
+   ```
+
+2. **Watch it work:**
+   ```bash
+   gh run watch
+   ```
+
+3. **Customize thresholds:**
+   Edit `scripts/analyze_signals.py`
+
+4. **Add Make.com integration:**
+   See [README-AUTOMATION.md](./README-AUTOMATION.md)
+
+---
+
+## 📚 Learn More
+
+- [Full Automation Guide](./README-AUTOMATION.md)
+- [Quick Reference](./QUICKSTART.md)
+- [Troubleshooting](./TROUBLESHOOTING.md)
+- [GitHub Actions Docs](https://docs.github.com/en/actions)
+- [Supabase Docs](https://supabase.com/docs)
+
+---
+
+**Ready? Let's get started!**
+
+```bash
+cd ~/klarpakke && bash scripts/master-fix-and-test.sh
+```
+
+🚀 **Klarpakke** - Enkel, risikostyrt, etterprøvbar trading for småsparere
