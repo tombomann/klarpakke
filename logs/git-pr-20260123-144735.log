@@ -1,0 +1,5 @@
+TITLE=docs: Klarpakke automation standards (decisions + PR workflow)
+BASE=main
+BRANCH=auto/klarpakke-20260123-144735
+REMOTE=https://github.com/tombomann/klarpakke.git
+REPO_SLUG=tombomann/klarpakke
