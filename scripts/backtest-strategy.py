@@ -6,7 +6,7 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
 print("="*70)
@@ -198,12 +198,15 @@ def main():
             "end_date": args.end_date,
             "initial_capital": args.initial_capital
         },
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "metrics": metrics
     }
     
-    # Save results
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    # Save results - handle both filename and path
+    output_dir = os.path.dirname(args.output)
+    if output_dir:  # Only create dir if path contains directory
+        os.makedirs(output_dir, exist_ok=True)
+    
     with open(args.output, 'w') as f:
         json.dump(result, f, indent=2)
     
