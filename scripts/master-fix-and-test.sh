@@ -8,12 +8,12 @@ echo "🤖🔧 KLARPAKKE MASTER FIX & TEST"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "This will AUTOMATICALLY:"
+echo "  🚨 Clean duplicate columns (if needed)"
 echo "  0️⃣  Fix NOT NULL constraints"
 echo "  1️⃣  Fix schema cache issues"
-echo "  2️⃣  Discover working table structure"
-echo "  3️⃣  Insert test signal (adaptive)"
-echo "  4️⃣  Run analysis (adaptive)"
-echo "  5️⃣  Show results"
+echo "  2️⃣  Insert test signal (adaptive)"
+echo "  3️⃣  Run analysis (adaptive)"
+echo "  4️⃣  Show results"
 echo ""
 
 # Load environment
@@ -24,6 +24,46 @@ if [ -f .env.migration ]; then
 else
     echo "❌ .env.migration not found!"
     exit 1
+fi
+
+echo ""
+echo "="*70
+echo "STEP -1: EMERGENCY DUPLICATE CLEANUP"
+echo "="*70
+echo ""
+echo "🚨 Checking for duplicate columns..."
+echo ""
+
+# Check if duplicates exist
+DUPLICATE_COUNT=$(psql "$SUPABASE_DB_URL" -t -c "
+SELECT COUNT(*) FROM (
+  SELECT column_name
+  FROM information_schema.columns 
+  WHERE table_name = 'aisignal'
+  GROUP BY column_name
+  HAVING COUNT(*) > 1
+) AS dupes;
+" 2>/dev/null || echo "0")
+
+if [ "$DUPLICATE_COUNT" -gt 0 ]; then
+    echo "⚠️  Found $DUPLICATE_COUNT duplicate column names!"
+    echo "🛠️  Running emergency cleanup..."
+    echo ""
+    
+    if python3 scripts/emergency-clean-duplicates.py; then
+        echo "✅ Duplicates cleaned!"
+        CLEAN_START=true
+    else
+        echo "❌ Emergency cleanup failed!"
+        echo ""
+        echo "Please run manually:"
+        echo "   python3 scripts/emergency-clean-duplicates.py"
+        echo ""
+        exit 1
+    fi
+else
+    echo "✅ No duplicates found - schema is clean!"
+    CLEAN_START=true
 fi
 
 echo ""
@@ -96,8 +136,8 @@ if [ "$SIGNAL_INSERTED" = true ] && [ "$ANALYSIS_OK" = true ]; then
     echo "✅ 🎉 FULL SUCCESS!"
     echo ""
     echo "Your system is now working:"
-    echo "  ✅ Database schema fixed"
-    echo "  ✅ NOT NULL constraints removed"
+    echo "  ✅ Database cleaned from duplicates"
+    echo "  ✅ Schema fixed and refreshed"
     echo "  ✅ Test signal inserted"
     echo "  ✅ Analysis running correctly"
     echo "  ✅ GitHub Actions ready to go"
@@ -116,30 +156,17 @@ elif [ "$ANALYSIS_OK" = true ]; then
     echo "🚀 System is operational - you can use it now!"
     echo ""
 else
-    echo "⚠️  🔧 NEEDS MANUAL FIX"
+    echo "⚠️  🔧 NEEDS ATTENTION"
     echo ""
-    echo "Automatic fix didn't fully work. Please:"
+    echo "Automatic fix didn't fully work. Try:"
     echo ""
-    echo "1. Open Supabase SQL Editor:"
+    echo "1. Emergency cleanup:"
+    echo "   python3 scripts/emergency-clean-duplicates.py"
+    echo ""
+    echo "2. Manual SQL (if needed):"
     echo "   open https://supabase.com/dashboard/project/$SUPABASE_PROJECT_ID/sql/new"
     echo ""
-    echo "2. Run this SQL to check schema:"
-    echo "   SELECT column_name, data_type, is_nullable"
-    echo "   FROM information_schema.columns"
-    echo "   WHERE table_name = 'aisignal'"
-    echo "   ORDER BY ordinal_position;"
-    echo ""
-    echo "3. Fix NOT NULL if needed:"
-    echo "   ALTER TABLE aisignal ALTER COLUMN entry_price DROP NOT NULL;"
-    echo ""
-    echo "4. Then refresh cache:"
-    echo "   NOTIFY pgrst, 'reload schema';"
-    echo ""
-    echo "5. Insert test signal:"
-    echo "   INSERT INTO aisignal (symbol, direction, entry_price, confidence, status)"
-    echo "   VALUES ('BTCUSDT', 'LONG', 50000, 0.80, 'pending');"
-    echo ""
-    echo "6. Re-run this script:"
+    echo "3. Re-run this script:"
     echo "   bash scripts/master-fix-and-test.sh"
     echo ""
 fi
@@ -148,6 +175,7 @@ echo "="*70
 echo "📋 Quick Reference"
 echo "="*70
 echo ""
+echo "Emergency:       python3 scripts/emergency-clean-duplicates.py"
 echo "Fix constraints: python3 scripts/fix-not-null-constraints.py"
 echo "Fix cache:       python3 scripts/fix-schema-cache.py"
 echo "Debug:           python3 scripts/debug-aisignal.py"
