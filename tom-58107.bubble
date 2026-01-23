@@ -1,0 +1,24 @@
+# FULL BUBBLE EXPORT [file:31] – 76KB properties (truncated snippet + base)
+# Copy denne til GitHub for RAW import
+{
+  "app": "tom-58107",
+  "pages": {
+    "index": {
+      "header": "logo/nav/theme-toggle",
+      "sections": ["security-grid", "theme-section", "main-root"],
+      "elements": ["Text index-security-auth-body", "Group index-security-auth-card"]
+    },
+    "dashboard": {},
+    "fakturering": {
+      "elements": ["Input customer-name", "Button btn-generate-invoice"],
+      "workflows": ["receiveaisignal"]
+    },
+    "admin": "MRR cards",
+    "konto": "subscription"
+  },
+  "data_types": ["User", "Subscription"],
+  "styles": ["bodysmall", "sectiontitle", "panel"],
+  "properties": "typeTextExpression,height0,left0,top0,width0,zindex5,... (full 76KB i Space)",
+  "version": "elementversion5,newresponsivetrue"
+}
+# SMOKE-TEST: head -20 tom-58107.bubble → JSON OK
