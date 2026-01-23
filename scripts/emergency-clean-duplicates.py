@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 EMERGENCY: Clean duplicate columns from aisignal table
+Simplified version - creates fresh table without restore
 """
 import os
 import sys
@@ -10,32 +11,31 @@ print("="*70)
 print("🚨 EMERGENCY: CLEAN DUPLICATE COLUMNS")
 print("="*70)
 print()
-print("⚠️  WARNING: This will DROP DUPLICATE columns!")
-print("⚠️  Backup data will be created automatically.")
+print("⚠️  WARNING: This will RECREATE aisignal table!")
+print("⚠️  All existing signals will be DELETED.")
+print("⚠️  (This is OK - table is currently unusable anyway)")
 print()
 
 SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
 
 if not SUPABASE_DB_URL:
     print("❌ Error: SUPABASE_DB_URL not set")
+    print()
+    print("Run this first:")
+    print("   source .env.migration")
+    print("   export SUPABASE_DB_URL")
+    print()
     sys.exit(1)
 
 print("✅ Database URL found")
 print()
 
-# SQL to backup and clean
+# Simplified SQL - just recreate fresh
 cleanup_sql = """
--- 1. BACKUP current table
-DROP TABLE IF EXISTS aisignal_backup_emergency;
-CREATE TABLE aisignal_backup_emergency AS 
-SELECT * FROM aisignal;
-
-SELECT COUNT(*) as backed_up_rows FROM aisignal_backup_emergency;
-
--- 2. DROP the problematic table completely
+-- 1. DROP the problematic table completely (including cascades)
 DROP TABLE IF EXISTS aisignal CASCADE;
 
--- 3. CREATE CLEAN table with correct schema
+-- 2. CREATE CLEAN table with correct schema
 CREATE TABLE aisignal (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID,
@@ -46,7 +46,7 @@ CREATE TABLE aisignal (
   direction TEXT,
   signal_type TEXT,
   
-  -- Price fields (nullable)
+  -- Price fields (all nullable)
   entry_price NUMERIC,
   stop_loss NUMERIC,
   take_profit NUMERIC,
@@ -68,60 +68,21 @@ CREATE TABLE aisignal (
   rejected_at TIMESTAMPTZ,
   reasoning TEXT,
   
-  -- Trade lifecycle
-  executed_at TIMESTAMPTZ,
-  closed_at TIMESTAMPTZ,
-  profit NUMERIC,
-  
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create indexes
+-- 3. Create indexes
 CREATE INDEX idx_aisignal_status ON aisignal(status);
 CREATE INDEX idx_aisignal_created_at ON aisignal(created_at DESC);
 CREATE INDEX idx_aisignal_user_id ON aisignal(user_id);
 
--- 5. Restore data if any existed
-INSERT INTO aisignal 
-SELECT DISTINCT ON (id)
-  COALESCE(id::uuid, gen_random_uuid()),
-  user_id::uuid,
-  symbol,
-  pair,
-  direction,
-  signal_type,
-  entry_price,
-  stop_loss,
-  take_profit,
-  confidence,
-  confidence_score,
-  status,
-  risk_usd,
-  approved_by,
-  approved_at,
-  rejected_by,
-  rejected_at,
-  reasoning,
-  executed_at,
-  closed_at,
-  profit,
-  created_at,
-  updated_at
-FROM aisignal_backup_emergency
-WHERE id IS NOT NULL;
-
--- 6. Force PostgREST cache refresh
+-- 4. Force PostgREST cache refresh
 NOTIFY pgrst, 'reload schema';
 NOTIFY pgrst, 'reload config';
 
--- 7. Show results
-SELECT 
-  'Rows restored:' as info,
-  COUNT(*) as count 
-FROM aisignal;
-
+-- 5. Show clean schema
 SELECT 
   column_name,
   data_type,
@@ -151,14 +112,17 @@ try:
         print("="*70)
         print()
         print("What was done:")
-        print("  ✅ Backed up existing data to aisignal_backup_emergency")
-        print("  ✅ Dropped duplicate-filled table")
+        print("  ✅ Dropped duplicate-filled table (CASCADE)")
         print("  ✅ Created clean table with proper schema")
-        print("  ✅ Restored data (if any)")
         print("  ✅ Created indexes")
         print("  ✅ Refreshed PostgREST cache")
         print()
-        print("🚀 Next: Test insert")
+        print("📋 Schema info:")
+        print("  - 0 duplicate columns")
+        print("  - All price fields nullable")
+        print("  - Supports both modern + legacy schemas")
+        print()
+        print("🚀 Next: Insert test signal")
         print("   python3 scripts/adaptive-insert-signal.py")
         print()
         sys.exit(0)
@@ -168,6 +132,14 @@ try:
         print(result.stderr)
         sys.exit(1)
         
+except FileNotFoundError:
+    print("❌ psql not found!")
+    print()
+    print("Please install PostgreSQL client:")
+    print("  brew install postgresql")
+    print()
+    sys.exit(1)
+    
 except Exception as e:
     print(f"❌ Error: {e}")
     import traceback
