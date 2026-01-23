@@ -16,7 +16,7 @@ help:
 
 ai-test:
 	@echo "Running Perplexity healthcheck..."
-	bash scripts/perplexity_healthcheck.sh
+	bash scripts/perplexityhealthcheck.sh
 
 ai-health: ai-test
 
@@ -31,3 +31,5 @@ stripe-verify-usd:
 docs-ai:
 	@echo "Generating AI documentation..."
 	@echo "Docs available in docs/ai/"
+bubble-log:
+	psql $$DATABASE_URL -c "INSERT INTO AICallLog (pair, signal) VALUES (\"BTCUSD\", \"test\");"
