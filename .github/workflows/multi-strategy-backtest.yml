@@ -1,0 +1,164 @@
+name: Multi-Strategy Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: false
+        default: '2024-01-01'
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: false
+        default: '2024-12-31'
+  schedule:
+    # Run weekly on Sunday at 00:00
+    - cron: '0 0 * * 0'
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # Test all strategies even if one fails
+      matrix:
+        strategy: [conservative, moderate]
+        include:
+          # Conservative: High winrate, low R-multiple
+          - strategy: conservative
+            min_confidence: 0.85
+            max_risk_percent: 1.0
+            target_winrate: 0.70
+            min_r_multiple: 1.5
+            description: "Safe strategy with 70%+ winrate target"
+          
+          # Moderate: Balanced risk/reward
+          - strategy: moderate
+            min_confidence: 0.75
+            max_risk_percent: 2.0
+            target_winrate: 0.65
+            min_r_multiple: 2.0
+            description: "Balanced strategy with 2.0x R-multiple target"
+    
+    name: Backtest ${{ matrix.strategy }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      - name: Run Backtest - ${{ matrix.strategy }}
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRATEGY: ${{ matrix.strategy }}
+          MIN_CONFIDENCE: ${{ matrix.min_confidence }}
+          MAX_RISK_PERCENT: ${{ matrix.max_risk_percent }}
+          TARGET_WINRATE: ${{ matrix.target_winrate }}
+          MIN_R_MULTIPLE: ${{ matrix.min_r_multiple }}
+        run: |
+          echo "======================================================"
+          echo "📊 BACKTESTING: $STRATEGY"
+          echo "======================================================"
+          echo ""
+          echo "Configuration:"
+          echo "  Min Confidence: $MIN_CONFIDENCE"
+          echo "  Max Risk: $MAX_RISK_PERCENT%"
+          echo "  Target Winrate: $TARGET_WINRATE"
+          echo "  Min R-Multiple: $MIN_R_MULTIPLE"
+          echo ""
+          
+          mkdir -p backtest-results
+          
+          python3 scripts/backtest-strategy.py \
+            --strategy "$STRATEGY" \
+            --min-confidence $MIN_CONFIDENCE \
+            --max-risk $MAX_RISK_PERCENT \
+            --start-date "${{ github.event.inputs.start_date || '2024-01-01' }}" \
+            --end-date "${{ github.event.inputs.end_date || '2024-12-31' }}" \
+            --output "backtest-results/${STRATEGY}.json"
+      
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-${{ matrix.strategy }}
+          path: backtest-results/*.json
+          retention-days: 90
+  
+  # Aggregate all backtest results
+  report:
+    needs: backtest
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results
+      
+      - name: Generate Comparison Report
+        run: |
+          echo "📊 Generating comparison report..."
+          
+          python3 scripts/aggregate-backtest-results.py \
+            --input-dir all-results \
+            --output backtest-report.md
+          
+          # Display report in logs
+          cat backtest-report.md
+      
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-report
+          path: backtest-report.md
+          retention-days: 365
+      
+      - name: Comment on Latest Commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('backtest-report.md', 'utf8');
+            
+            // Find latest commit
+            const commits = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 1
+            });
+            
+            const latestCommit = commits.data[0].sha;
+            
+            // Post comment
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: latestCommit,
+              body: `## 📊 Backtest Report\n\n${report}`
+            });
+            
+            console.log('✅ Posted backtest report to latest commit');
+      
+      - name: Create Summary
+        run: |
+          echo "## 📊 Backtest Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat backtest-report.md >> $GITHUB_STEP_SUMMARY
