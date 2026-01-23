@@ -15,52 +15,67 @@ BASE_URL = f"https://{SUPABASE_PROJECT_ID}.supabase.co/rest/v1"
 HEADERS = {
     "apikey": SUPABASE_SERVICE_ROLE_KEY,
     "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
 }
 
 def fetch_pending_signals():
-    url = f"{BASE_URL}/aisignal?status=eq.pending&order=created_at.desc&limit=10"
+    """Fetch signals with status='PENDING' from aisignal table"""
+    url = f"{BASE_URL}/aisignal?status=eq.PENDING&order=created_at.desc&limit=10"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     return response.json()
 
 def analyze_signal(signal):
-    entry = signal['entry_price']
-    stop_loss = signal['stop_loss']
-    take_profit = signal['take_profit']
-    confidence = signal['confidence']
+    """
+    Analyze signal based on confidence_score.
+    Since table doesn't have entry_price/stop_loss/take_profit,
+    we use confidence_score as main decision factor.
+    """
+    signal_id = signal['id']
+    pair = signal['pair']
+    signal_type = signal['signal_type']
+    confidence_score = signal.get('confidence_score', 0)  # 0-100
     
-    risk = abs(entry - stop_loss)
-    reward = abs(take_profit - entry)
-    rr_ratio = reward / risk if risk > 0 else 0
+    print(f"\n📊 Signal {signal_id[:8]}: {pair} {signal_type}")
+    print(f"   Confidence: {confidence_score}%")
     
-    print(f"\n📊 Signal {signal['id']}: {signal['symbol']} {signal['direction']}")
-    print(f"   R:R: {rr_ratio:.2f} | Confidence: {confidence:.2%}")
-    
-    if rr_ratio >= 2.0 and confidence >= 0.75:
-        decision = "approved"
-        reasoning = f"Strong signal: R:R={rr_ratio:.2f}, conf={confidence:.2%}"
-    elif rr_ratio < 1.5:
-        decision = "rejected"
-        reasoning = f"Poor R:R ratio: {rr_ratio:.2f}"
-    elif confidence < 0.70:
-        decision = "rejected"
-        reasoning = f"Low confidence: {confidence:.2%}"
+    # Decision logic based on confidence score
+    if confidence_score >= 75:
+        decision = "APPROVED"
+        reasoning = f"High confidence: {confidence_score}%"
+    elif confidence_score >= 60:
+        decision = "PENDING"
+        reasoning = f"Medium confidence: {confidence_score}% - needs review"
     else:
-        decision = "pending"
-        reasoning = "Marginal signal"
+        decision = "REJECTED"
+        reasoning = f"Low confidence: {confidence_score}%"
     
-    print(f"   Decision: {decision.upper()}")
-    return decision, reasoning, rr_ratio
+    print(f"   Decision: {decision}")
+    print(f"   Reasoning: {reasoning}")
+    
+    return decision, reasoning
 
 def update_signal(signal_id, decision, reasoning):
+    """Update signal status in database"""
     url = f"{BASE_URL}/aisignal?id=eq.{signal_id}"
+    
+    timestamp = datetime.utcnow().isoformat()
     update_data = {
-        "status": decision,
-        "reasoning": reasoning,
-        f"{decision}_by": "github_actions",
-        f"{decision}_at": datetime.utcnow().isoformat()
+        "status": decision
     }
+    
+    # Add approved/rejected metadata if not pending
+    if decision == "APPROVED":
+        update_data["approved_by"] = "github_actions"
+        update_data["approved_at"] = timestamp
+    elif decision == "REJECTED":
+        update_data["rejected_by"] = "github_actions"
+        update_data["rejected_at"] = timestamp
+    
+    # Note: 'reasoning' column doesn't exist in schema, so we skip it
+    # If you want to add it, run: ALTER TABLE aisignal ADD COLUMN reasoning TEXT;
+    
     response = requests.patch(url, headers=HEADERS, json=update_data)
     return response.status_code in [200, 204]
 
@@ -74,24 +89,41 @@ def main():
         print(f"\n📥 Found {len(signals)} pending signals")
         
         if not signals:
-            print("✅ No pending signals")
+            print("✅ No pending signals to analyze")
             return
         
+        approved_count = 0
+        rejected_count = 0
+        pending_count = 0
+        
         for signal in signals:
-            decision, reasoning, rr_ratio = analyze_signal(signal)
+            decision, reasoning = analyze_signal(signal)
             
-            if decision != 'pending':
+            if decision != 'PENDING':
                 if update_signal(signal['id'], decision, reasoning):
                     print(f"   ✅ Updated to {decision}")
+                    if decision == "APPROVED":
+                        approved_count += 1
+                    elif decision == "REJECTED":
+                        rejected_count += 1
                 else:
                     print(f"   ❌ Failed to update")
+            else:
+                pending_count += 1
+                print(f"   ⏸️  Kept as PENDING")
         
         print("\n" + "=" * 60)
-        print("✅ Analysis complete")
+        print(f"✅ Analysis complete")
+        print(f"   Approved: {approved_count}")
+        print(f"   Rejected: {rejected_count}")
+        print(f"   Pending: {pending_count}")
+        print("=" * 60)
+        
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
     main()
-
