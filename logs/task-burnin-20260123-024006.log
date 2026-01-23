@@ -1,0 +1,41 @@
+=== round 1/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+OK: env_lint passed (BASE=https://eu1.make.com/api/v2 ORG_ID=733572 TEAM_ID=447181 TOKEN_LEN=23)
+ERROR: HTTP 401 for https://eu1.make.com/api/v2/organizations?pg%5Blimit%5D=50 (saved logs/20260123-024006-organizations.json)
+Access denied
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 2/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+OK: env_lint passed (BASE=https://eu1.make.com/api/v2 ORG_ID=733572 TEAM_ID=447181 TOKEN_LEN=23)
+ERROR: HTTP 401 for https://eu1.make.com/api/v2/organizations?pg%5Blimit%5D=50 (saved logs/20260123-024007-organizations.json)
+Access denied
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 3/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+OK: env_lint passed (BASE=https://eu1.make.com/api/v2 ORG_ID=733572 TEAM_ID=447181 TOKEN_LEN=23)
+ERROR: HTTP 401 for https://eu1.make.com/api/v2/organizations?pg%5Blimit%5D=50 (saved logs/20260123-024007-organizations.json)
+Access denied
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 4/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+OK: env_lint passed (BASE=https://eu1.make.com/api/v2 ORG_ID=733572 TEAM_ID=447181 TOKEN_LEN=23)
+ERROR: HTTP 401 for https://eu1.make.com/api/v2/organizations?pg%5Blimit%5D=50 (saved logs/20260123-024007-organizations.json)
+Access denied
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 5/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+OK: env_lint passed (BASE=https://eu1.make.com/api/v2 ORG_ID=733572 TEAM_ID=447181 TOKEN_LEN=23)
+ERROR: HTTP 401 for https://eu1.make.com/api/v2/organizations?pg%5Blimit%5D=50 (saved logs/20260123-024007-organizations.json)
+Access denied
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+Rounds=5 Failures=5

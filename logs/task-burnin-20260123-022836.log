@@ -1,0 +1,136 @@
+=== round 1/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth.sh"
+✅ Env: ORG=733572 TEAM=447181 BASE=https://eu1.make.com/api/v2
+== organizations ==
+GET https://eu1.make.com/api/v2/organizations
+HTTP 401
+Saved: logs/20260123-022836-organizations.json
+
+== teams ==
+GET https://eu1.make.com/api/v2/teams?organizationId=733572&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022836-teams.json
+
+== scenarios_by_team ==
+GET https://eu1.make.com/api/v2/scenarios?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022836-scenarios_by_team.json
+
+== scenario_folders_list ==
+GET https://eu1.make.com/api/v2/scenarios-folders?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022836-scenario_folders_list.json
+
+task: [deploy] echo "OK deploy (read-side)"
+OK deploy (read-side)
+=== round 2/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth.sh"
+✅ Env: ORG=733572 TEAM=447181 BASE=https://eu1.make.com/api/v2
+== organizations ==
+GET https://eu1.make.com/api/v2/organizations
+HTTP 401
+Saved: logs/20260123-022837-organizations.json
+
+== teams ==
+GET https://eu1.make.com/api/v2/teams?organizationId=733572&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022837-teams.json
+
+== scenarios_by_team ==
+GET https://eu1.make.com/api/v2/scenarios?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022837-scenarios_by_team.json
+
+== scenario_folders_list ==
+GET https://eu1.make.com/api/v2/scenarios-folders?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022837-scenario_folders_list.json
+
+task: [deploy] echo "OK deploy (read-side)"
+OK deploy (read-side)
+=== round 3/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth.sh"
+✅ Env: ORG=733572 TEAM=447181 BASE=https://eu1.make.com/api/v2
+== organizations ==
+GET https://eu1.make.com/api/v2/organizations
+HTTP 401
+Saved: logs/20260123-022837-organizations.json
+
+== teams ==
+GET https://eu1.make.com/api/v2/teams?organizationId=733572&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022837-teams.json
+
+== scenarios_by_team ==
+GET https://eu1.make.com/api/v2/scenarios?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022837-scenarios_by_team.json
+
+== scenario_folders_list ==
+GET https://eu1.make.com/api/v2/scenarios-folders?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022837-scenario_folders_list.json
+
+task: [deploy] echo "OK deploy (read-side)"
+OK deploy (read-side)
+=== round 4/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth.sh"
+✅ Env: ORG=733572 TEAM=447181 BASE=https://eu1.make.com/api/v2
+== organizations ==
+GET https://eu1.make.com/api/v2/organizations
+HTTP 401
+Saved: logs/20260123-022838-organizations.json
+
+== teams ==
+GET https://eu1.make.com/api/v2/teams?organizationId=733572&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022838-teams.json
+
+== scenarios_by_team ==
+GET https://eu1.make.com/api/v2/scenarios?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022838-scenarios_by_team.json
+
+== scenario_folders_list ==
+GET https://eu1.make.com/api/v2/scenarios-folders?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022838-scenario_folders_list.json
+
+task: [deploy] echo "OK deploy (read-side)"
+OK deploy (read-side)
+=== round 5/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth.sh"
+✅ Env: ORG=733572 TEAM=447181 BASE=https://eu1.make.com/api/v2
+== organizations ==
+GET https://eu1.make.com/api/v2/organizations
+HTTP 401
+Saved: logs/20260123-022839-organizations.json
+
+== teams ==
+GET https://eu1.make.com/api/v2/teams?organizationId=733572&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022839-teams.json
+
+== scenarios_by_team ==
+GET https://eu1.make.com/api/v2/scenarios?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022839-scenarios_by_team.json
+
+== scenario_folders_list ==
+GET https://eu1.make.com/api/v2/scenarios-folders?teamId=447181&pg%5Blimit%5D=50
+HTTP 401
+Saved: logs/20260123-022839-scenario_folders_list.json
+
+task: [deploy] echo "OK deploy (read-side)"
+OK deploy (read-side)
+Rounds=5 Failures=0

@@ -1,0 +1,54 @@
+version: "3"
+
+# Task kan laste .env direkte for tasks (slipper eval/source for deploy/diagnose). [page:1]
+dotenv: ['.env']
+
+vars:
+  ROOT:
+    sh: git rev-parse --show-toplevel
+
+tasks:
+  default:
+    desc: "List tasks"
+    cmds:
+      - cmd: task -a
+    silent: true
+
+  auth:info:
+    desc: "Vis auth-status (safe)"
+    deps: [doctor]
+    cmds:
+      - cmd: bash "{{.ROOT}}/scripts/make/auth_info.sh"
+
+  auth:check:
+    desc: "Hard-check at Make API auth fungerer (fail på 401/403)"
+    deps: [doctor]
+    cmds:
+      - cmd: bash "{{.ROOT}}/scripts/make/diagnose-auth-v2.sh"
+
+  doctor:
+    desc: "Repo healthcheck"
+    cmds:
+      - cmd: bash "{{.ROOT}}/scripts/kp.sh" doctor
+
+  # For interaktiv zsh (valgfritt): eval "$(task -s env)"
+  env:
+    desc: 'Print kommandoer for zsh: eval "$(task -s env)"'
+    silent: true
+    cmds:
+      - cmd: echo "cd {{.ROOT}}"
+      - cmd: echo "source scripts/make/env.sh"
+
+  diagnose:
+    desc: "Make API read-side diagnose"
+    deps: [doctor]
+    requires:
+      vars: [MAKE_TOKEN, ORG_ID, TEAM_ID]
+    cmds:
+      - cmd: bash "{{.ROOT}}/scripts/make/diagnose-auth-v2.sh"
+
+  deploy:
+    desc: "Entry: doctor -> diagnose (read-side)"
+    deps: [diagnose]
+    cmds:
+      - cmd: echo "OK deploy (read-side)"

@@ -16,7 +16,7 @@ help:
 
 ai-test:
 	@echo "Running Perplexity healthcheck..."
-	bash scripts/perplexityhealthcheck.sh
+	bash scripts/perplexity_healthcheck.sh
 
 ai-health: ai-test
 

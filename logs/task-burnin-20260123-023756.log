@@ -1,0 +1,31 @@
+=== round 1/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+FATAL: MAKE_TOKEN virker for kort (10). Sannsynligvis kopiert maskert/trunkert token. Lag ny token og kopier den umiddelbart. [web:584]
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 2/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+FATAL: MAKE_TOKEN virker for kort (10). Sannsynligvis kopiert maskert/trunkert token. Lag ny token og kopier den umiddelbart. [web:584]
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 3/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+FATAL: MAKE_TOKEN virker for kort (10). Sannsynligvis kopiert maskert/trunkert token. Lag ny token og kopier den umiddelbart. [web:584]
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 4/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+FATAL: MAKE_TOKEN virker for kort (10). Sannsynligvis kopiert maskert/trunkert token. Lag ny token og kopier den umiddelbart. [web:584]
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+=== round 5/5 ===
+task: [doctor] bash "/Users/taj/klarpakke/scripts/kp.sh" doctor
+OK: doctor passed
+task: [diagnose] bash "/Users/taj/klarpakke/scripts/make/diagnose-auth-v2.sh"
+FATAL: MAKE_TOKEN virker for kort (10). Sannsynligvis kopiert maskert/trunkert token. Lag ny token og kopier den umiddelbart. [web:584]
+task: Failed to run task "deploy": task: Failed to run task "diagnose": exit status 1
+Rounds=5 Failures=5

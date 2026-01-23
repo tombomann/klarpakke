@@ -1,0 +1,36 @@
+=== round 1/5 ===
+err:  invalid keys in command
+file: /Users/taj/klarpakke/Taskfile.yml:36:9
+  34 | [1m[30m    [0m[33mdeps[0m[1m[30m:[0m[1m[30m [0m[1m[30m[[0m[36mdiagnose][0m[1m[30m[0m
+  35 | [1m[30m    [0m[33mcmds[0m[1m[30m:[0m[1m[30m[0m
+> 36 | [1m[30m      [0m[1m[30m- [0m[36mecho "OK: deploy (read-side) ferdig"[0m[1m[30m[0m
+     |         ^
+=== round 2/5 ===
+err:  invalid keys in command
+file: /Users/taj/klarpakke/Taskfile.yml:36:9
+  34 | [1m[30m    [0m[33mdeps[0m[1m[30m:[0m[1m[30m [0m[1m[30m[[0m[36mdiagnose][0m[1m[30m[0m
+  35 | [1m[30m    [0m[33mcmds[0m[1m[30m:[0m[1m[30m[0m
+> 36 | [1m[30m      [0m[1m[30m- [0m[36mecho "OK: deploy (read-side) ferdig"[0m[1m[30m[0m
+     |         ^
+=== round 3/5 ===
+err:  invalid keys in command
+file: /Users/taj/klarpakke/Taskfile.yml:36:9
+  34 | [1m[30m    [0m[33mdeps[0m[1m[30m:[0m[1m[30m [0m[1m[30m[[0m[36mdiagnose][0m[1m[30m[0m
+  35 | [1m[30m    [0m[33mcmds[0m[1m[30m:[0m[1m[30m[0m
+> 36 | [1m[30m      [0m[1m[30m- [0m[36mecho "OK: deploy (read-side) ferdig"[0m[1m[30m[0m
+     |         ^
+=== round 4/5 ===
+err:  invalid keys in command
+file: /Users/taj/klarpakke/Taskfile.yml:36:9
+  34 | [1m[30m    [0m[33mdeps[0m[1m[30m:[0m[1m[30m [0m[1m[30m[[0m[36mdiagnose][0m[1m[30m[0m
+  35 | [1m[30m    [0m[33mcmds[0m[1m[30m:[0m[1m[30m[0m
+> 36 | [1m[30m      [0m[1m[30m- [0m[36mecho "OK: deploy (read-side) ferdig"[0m[1m[30m[0m
+     |         ^
+=== round 5/5 ===
+err:  invalid keys in command
+file: /Users/taj/klarpakke/Taskfile.yml:36:9
+  34 | [1m[30m    [0m[33mdeps[0m[1m[30m:[0m[1m[30m [0m[1m[30m[[0m[36mdiagnose][0m[1m[30m[0m
+  35 | [1m[30m    [0m[33mcmds[0m[1m[30m:[0m[1m[30m[0m
+> 36 | [1m[30m      [0m[1m[30m- [0m[36mecho "OK: deploy (read-side) ferdig"[0m[1m[30m[0m
+     |         ^
+Rounds=5 Failures=5 FailureRate=1.0

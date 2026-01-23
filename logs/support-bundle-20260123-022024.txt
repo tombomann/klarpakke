@@ -1,0 +1,69 @@
+=== CONTEXT ===
+pwd: /Users/taj/klarpakke
+git: 6b95af4
+uname: Darwin macbookair.lan 25.3.0 Darwin Kernel Version 25.3.0: Fri Dec  5 23:11:35 PST 2025; root:xnu-12377.80.260.0.1~42/RELEASE_ARM64_T8103 arm64
+zsh: zsh 5.9 (arm64-apple-darwin25.0)
+bash: GNU bash, version 3.2.57(1)-release (arm64-apple-darwin25)
+make: GNU Make 3.81
+
+=== KP DOCTOR ===
+OK: doctor passed
+
+=== MAKEFILE (numbered) ===
+     1	SHELL := /bin/bash
+     2	.ONESHELL:
+     3	.RECIPEPREFIX := >
+     4	
+     5	ROOT := $(shell git rev-parse --show-toplevel 2>/dev/null)
+     6	
+     7	.PHONY: doctor root env deploy deploy-make
+     8	
+     9	doctor:
+    10	> bash "$(ROOT)/scripts/kp.sh" doctor
+    11	
+    12	root:
+    13	> @echo "$(ROOT)"
+    14	
+    15	# Bruk: eval "$(make -s env)"
+    16	env:
+    17	> @echo "cd $(ROOT)"
+    18	> @echo "source scripts/make/env.sh"
+    19	
+    20	deploy: doctor deploy-make
+    21	
+    22	deploy-make:
+    23	> @echo "Running Make diagnostics..."
+    24	> bash "$(ROOT)/scripts/make/diagnose-auth.sh"
+
+=== MAKEFILE (show invisibles) ===
+SHELL := /bin/bash$
+.ONESHELL:$
+.RECIPEPREFIX := >$
+$
+ROOT := $(shell git rev-parse --show-toplevel 2>/dev/null)$
+$
+.PHONY: doctor root env deploy deploy-make$
+$
+doctor:$
+> bash "$(ROOT)/scripts/kp.sh" doctor$
+$
+root:$
+> @echo "$(ROOT)"$
+$
+# Bruk: eval "$(make -s env)"$
+env:$
+> @echo "cd $(ROOT)"$
+> @echo "source scripts/make/env.sh"$
+$
+deploy: doctor deploy-make$
+$
+deploy-make:$
+> @echo "Running Make diagnostics..."$
+> bash "$(ROOT)/scripts/make/diagnose-auth.sh"$
+
+=== ENV FILES PRESENT? (no content) ===
+-rw-r--r--  1 taj  staff  84 23 jan. 02:17 .env
+-rw-r--r--  1 taj  staff  84 23 jan. 01:59 .env.example
+
+=== MAKE -n env (dry-run) ===
+Makefile:10: *** missing separator.  Stop.
