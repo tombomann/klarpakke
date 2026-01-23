@@ -1,0 +1,9 @@
+name: Bubble Backup CI/CD
+on: [push]
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Verify .bubble
+      run: ls -la tom-58107.bubble || echo "No bubble"
