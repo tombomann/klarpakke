@@ -1,0 +1,82 @@
+name: Debug Supabase Keys
+
+on:
+  workflow_dispatch:
+
+env:
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check environment variables
+        run: |
+          echo "🔍 Checking environment variables..."
+          echo "SUPABASE_PROJECT_ID: ${SUPABASE_PROJECT_ID:-NOT SET}"
+          echo "SUPABASE_SERVICE_ROLE_KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
+          
+          if [ -z "$SUPABASE_PROJECT_ID" ]; then
+            echo "❌ SUPABASE_PROJECT_ID is not set"
+            exit 1
+          fi
+          
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "❌ SUPABASE_SERVICE_ROLE_KEY is not set"
+            exit 1
+          fi
+          
+          echo "✅ Environment variables are set"
+      
+      - name: Test root endpoint
+        run: |
+          echo "🧪 Testing root endpoint..."
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/rest/v1/" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+          
+          echo "HTTP Status: $HTTP_CODE"
+          cat response.json
+          
+          if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "404" ]; then
+            echo "✅ Root endpoint accessible"
+          else
+            echo "❌ Root endpoint failed"
+            exit 1
+          fi
+      
+      - name: Test aisignal table
+        run: |
+          echo "🧪 Testing aisignal table..."
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/rest/v1/aisignal?limit=1" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json")
+          
+          echo "HTTP Status: $HTTP_CODE"
+          cat response.json
+          
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ aisignal table accessible"
+          else
+            echo "❌ aisignal table failed"
+            exit 1
+          fi
+      
+      - name: Decode JWT token
+        run: |
+          echo "🔍 Decoding JWT token..."
+          JWT_PAYLOAD=$(echo "${SUPABASE_SERVICE_ROLE_KEY}" | cut -d'.' -f2)
+          
+          # Add padding if needed
+          case $((${#JWT_PAYLOAD} % 4)) in
+            2) JWT_PAYLOAD="${JWT_PAYLOAD}==" ;;
+            3) JWT_PAYLOAD="${JWT_PAYLOAD}=" ;;
+          esac
+          
+          echo "$JWT_PAYLOAD" | base64 -d | jq . || echo "⚠️ Could not decode JWT"
