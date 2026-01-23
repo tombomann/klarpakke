@@ -1,0 +1,5 @@
+TITLE=wip: curl debug
+BASE=main
+BRANCH=auto/klarpakke-20260123-150037
+REMOTE=https://github.com/tombomann/klarpakke.git
+REPO_SLUG=tombomann/klarpakke
