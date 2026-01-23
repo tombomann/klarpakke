@@ -1,0 +1,45 @@
+{
+  "name": "Klarpakke: Kill Switch",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {
+        "status": "200",
+        "body": "Kill switch activated"
+      }
+    },
+    {
+      "id": 2,
+      "module": "postgresql:insertRow",
+      "version": 1,
+      "parameters": {
+        "connection": "supabase",
+        "schema": "public",
+        "table": "kill_switch_events"
+      },
+      "mapper": {
+        "user_id": "{{1.user_id}}",
+        "reason": "{{1.reason}}",
+        "triggered_at": "{{now}}"
+      }
+    },
+    {
+      "id": 3,
+      "module": "postgresql:updateRow",
+      "version": 1,
+      "parameters": {
+        "connection": "supabase",
+        "schema": "public",
+        "table": "position_tracking",
+        "condition": "status = 'OPEN'"
+      },
+      "mapper": {
+        "status": "CLOSED",
+        "closed_at": "{{now}}",
+        "close_reason": "KILL_SWITCH"
+      }
+    }
+  ]
+}

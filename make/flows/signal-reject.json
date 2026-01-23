@@ -1,0 +1,40 @@
+{
+  "name": "Klarpakke: Signal Reject",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:WebhookRespond",
+      "version": 1,
+      "parameters": {
+        "status": "200",
+        "body": "{{1.symbol}} rejected: {{1.reject_reason}}"
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {"x": 0, "y": 0}
+      }
+    },
+    {
+      "id": 2,
+      "module": "postgresql:insertRow",
+      "version": 1,
+      "parameters": {
+        "connection": "supabase",
+        "schema": "public",
+        "table": "ai_call_log"
+      },
+      "mapper": {
+        "symbol": "{{1.symbol}}",
+        "action": "reject",
+        "reason": "{{1.reject_reason}}",
+        "timestamp": "{{now}}"
+      },
+      "metadata": {
+        "designer": {"x": 300, "y": 0}
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1
+  }
+}
