@@ -6,35 +6,20 @@
 
 ---
 
-## 🆘 **HAVING ISSUES? AUTO-FIX ALL PROBLEMS**
+## 🆘 **AUTOMATISK OPPSETT - ETT KOMMANDO**
 
 ```bash
-cd ~/klarpakke && git pull && chmod +x scripts/auto-fix-complete.sh && ./scripts/auto-fix-complete.sh
+cd ~/klarpakke && git pull && chmod +x scripts/auto-fix-cli.sh && ./scripts/auto-fix-cli.sh
 ```
 
-**This will automatically:**
-- ✅ Test API & DB connections
-- ✅ Fix duplicate columns
-- ✅ Update constraints
-- ✅ Insert test signal
-- ✅ Trigger workflows
+**Dette fikser automatisk:**
+- ✅ Tester API & DB tilkobling
+- ✅ Verifiserer aisignal table
+- ✅ Inserterer test signal
+- ✅ Starter workflows
+- ✅ Viser database status
 
-📚 **[Full Auto-Fix Guide →](./AUTO-FIX-README.md)**
-
----
-
-## 🚀 **ONE-COMMAND SETUP**
-
-```bash
-cd ~/klarpakke && git pull && bash scripts/master-fix-and-test.sh
-```
-
-**This automatically:**
-- ✅ Fixes database schema
-- ✅ Discovers working configuration  
-- ✅ Inserts test signal
-- ✅ Tests analysis pipeline
-- ✅ Reports full status
+**Ingen Docker nødvendig!** Bruker REST API for alt.
 
 ---
 
@@ -46,7 +31,7 @@ cd ~/klarpakke && git pull && bash scripts/master-fix-and-test.sh
 - 🚨 **Auto-Issue Creation** - Automated debugging when errors occur
 - 📊 **Multi-Strategy Backtesting** - Test 2 strategies in parallel
 - 💬 **Sentiment Aggregation** - Reddit + Twitter sentiment analysis
-- 🤖 **Auto-Fix** - One command to fix all common issues
+- 🤖 **Auto-Fix CLI** - REST API-based setup (no Docker needed)
 
 📚 **[READ THE COMPLETE AUTOMATION GUIDE →](./docs/AUTOMATION-GUIDE.md)**
 
@@ -72,7 +57,7 @@ Klarpakke is an **automated trading signal analysis system** that:
 ✅ **Zero-Cost** - Runs on GitHub Actions free tier  
 ✅ **Auto-Debugging** - Creates GitHub issues on errors  
 ✅ **Sentiment-Aware** - Integrates community sentiment  
-✅ **Auto-Fix** - One command repairs all issues  
+✅ **Auto-Fix** - One command repairs all issues (no Docker!)  
 
 ---
 
@@ -80,7 +65,7 @@ Klarpakke is an **automated trading signal analysis system** that:
 
 | Guide | Description |
 |-------|-------------|
-| **[🆘 Auto-Fix Guide](./AUTO-FIX-README.md)** | **Fix all issues automatically** |
+| **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** | **Fix all issues automatically** |
 | **[🤖 Automation Guide](./docs/AUTOMATION-GUIDE.md)** | **Complete automation framework** |
 | [QUICKSTART.md](./QUICKSTART.md) | Quick reference for common tasks |
 | [README-AUTOMATION.md](./README-AUTOMATION.md) | Legacy automation guide |
@@ -90,35 +75,42 @@ Klarpakke is an **automated trading signal analysis system** that:
 
 ## 🛠️ Quick Start
 
-### 1. Setup GitHub Secrets (One-Time)
+### 1. Setup .env.local (One-Time)
 
 ```bash
 cd ~/klarpakke
-git pull
 
-# Migrate from .env to GitHub Secrets
-chmod +x scripts/setup-github-secrets.sh
-./scripts/setup-github-secrets.sh
+# Create .env.local
+cat > .env.local << 'EOF'
+export SUPABASE_PROJECT_ID="swfyuwkptusceiouqlks"
+export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key-here"
+export SUPABASE_DB_URL="postgresql://postgres.swfyuwkptusceiouqlks:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
+EOF
+
+# Get keys from:
+# API Key: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/api
+# DB Password: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/database
 ```
 
-### 2. Test Backtest Framework
+### 2. Run Auto-Fix
 
 ```bash
-python3 scripts/backtest-strategy.py \
-  --strategy conservative \
-  --min-confidence 0.85 \
-  --max-risk 1.0 \
-  --start-date 2024-01-01 \
-  --end-date 2024-12-31 \
-  --output results.json
+chmod +x scripts/auto-fix-cli.sh
+./scripts/auto-fix-cli.sh
 ```
 
-### 3. Test Sentiment Aggregation
+### 3. Watch Workflows
 
 ```bash
-python3 scripts/aggregate-sentiment.py \
-  --symbol BTC \
-  --base-confidence 0.75
+# Install GitHub CLI if needed
+brew install gh
+gh auth login
+
+# Watch live runs
+gh run watch
+
+# List recent runs
+gh run list -L 5
 ```
 
 ---
@@ -150,13 +142,13 @@ gh workflow run multi-strategy-backtest.yml
 
 ## 🔧 Available Scripts
 
-### 🔐 Security & Setup
+### 🔐 Setup & Fix
 
 | Script | Purpose |
 |--------|----------|
-| `auto-fix-complete.sh` | **Auto-fix all issues** |
+| `auto-fix-cli.sh` | **Auto-fix via REST API (no Docker)** |
 | `setup-github-secrets.sh` | Migrate .env → GitHub Secrets |
-| `master-fix-and-test.sh` | Auto-fix database + test |
+| `master-fix-and-test.sh` | Legacy fix (requires psql) |
 | `ultimate-setup.sh` | Full end-to-end setup |
 
 ### 📊 Analysis & Backtesting
@@ -202,7 +194,7 @@ gh workflow run multi-strategy-backtest.yml
 │  GitHub Actions         │
 │  + Auto-Issue on Error  │ ← NEW!
 │  + Sentiment Boost      │ ← NEW!
-│  + Auto-Fix             │ ← NEW!
+│  + Auto-Fix CLI         │ ← NEW!
 │  - Fetch PENDING        │
 │  - Analyze confidence   │
 │  - Approve/Reject       │
@@ -228,77 +220,14 @@ gh workflow run multi-strategy-backtest.yml
 
 ---
 
-## 📊 New Features Explained
-
-### 🆘 Auto-Fix All Issues
-
-**One command fixes everything:**
-
-```bash
-./scripts/auto-fix-complete.sh
-```
-
-**Handles:**
-- ✅ API connection issues
-- ✅ Database connection errors
-- ✅ Duplicate column cleanup
-- ✅ Constraint violations
-- ✅ Signal insert failures
-- ✅ Workflow triggers
-
-**[Full Guide →](./AUTO-FIX-README.md)**
-
-### 🔐 GitHub Secrets
-
-**Before:** Secrets in `.env` files (security risk)  
-**After:** Encrypted GitHub Secrets (secure, audited)
-
-```bash
-# One-time migration
-./scripts/setup-github-secrets.sh
-```
-
-### 🚨 Auto-Issue on Errors
-
-**When a workflow fails:**
-1. Captures full error log
-2. Creates GitHub issue automatically
-3. Includes debugging checklist
-4. Auto-assigns to you
-
-**No more silent failures!**
-
-### 📊 Multi-Strategy Backtesting
-
-**Test multiple strategies in parallel:**
-- Conservative (70% winrate, 1.5x R)
-- Moderate (65% winrate, 2.0x R)
-
-```bash
-gh workflow run multi-strategy-backtest.yml
-```
-
-### 💬 Sentiment Aggregation
-
-**Boost AI confidence with community sentiment:**
-
-```
-AI: 75% confidence
-+ Reddit: 82% bullish
-+ Twitter: 78% bullish
-= Adjusted: 81% confidence ✅
-```
-
----
-
 ## ✅ Success Checklist
 
 Your system is working when:
 
-- [ ] `./scripts/auto-fix-complete.sh` completes successfully
-- [ ] `gh secret list` shows secrets uploaded
-- [ ] `gh workflow run trading-with-auto-issue.yml` succeeds
-- [ ] `gh workflow run multi-strategy-backtest.yml` generates report
+- [ ] `.env.local` created with real credentials
+- [ ] `./scripts/auto-fix-cli.sh` completes successfully
+- [ ] Database has test signal inserted
+- [ ] `gh workflow run multi-strategy-backtest.yml` succeeds
 - [ ] Errors auto-create GitHub issues
 - [ ] Backtest results saved to artifacts
 
@@ -310,17 +239,16 @@ Your system is working when:
 
 **Quick fixes:**
 ```bash
-# Fix everything automatically
-./scripts/auto-fix-complete.sh
+# Fix everything automatically (no Docker needed)
+./scripts/auto-fix-cli.sh
 
-# Or legacy fix
+# Or legacy fix (requires psql)
 bash scripts/master-fix-and-test.sh
 
-# Fix schema cache
-python3 scripts/fix-schema-cache.py
-
-# Debug table state
-python3 scripts/debug-aisignal.py
+# Check API directly
+source .env.local
+curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  "https://swfyuwkptusceiouqlks.supabase.co/rest/v1/aisignal?limit=5"
 ```
 
 ---
@@ -329,7 +257,8 @@ python3 scripts/debug-aisignal.py
 
 - **Database:** Supabase (PostgreSQL)
 - **CI/CD:** GitHub Actions
-- **Language:** Python 3
+- **Language:** Python 3 + Bash
+- **API:** REST (PostgREST)
 - **Secrets:** GitHub Secrets (encrypted)
 - **Automation:** Make.com (optional)
 - **AI:** Perplexity + Claude
@@ -339,7 +268,7 @@ python3 scripts/debug-aisignal.py
 
 ## 📚 Learn More
 
-- **[🆘 Auto-Fix Guide](./AUTO-FIX-README.md)** ← PROBLEMS? START HERE!
+- **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** ← PROBLEMS? START HERE!
 - **[🤖 Complete Automation Guide](./docs/AUTOMATION-GUIDE.md)**
 - [Quick Reference](./QUICKSTART.md)
 - [Troubleshooting](./TROUBLESHOOTING.md)
@@ -350,27 +279,19 @@ python3 scripts/debug-aisignal.py
 
 ## 🚀 Next Steps
 
-1. **Fix any issues:**
+1. **Create .env.local** (see Quick Start above)
+
+2. **Run auto-fix:**
    ```bash
-   ./scripts/auto-fix-complete.sh
+   cd ~/klarpakke && git pull && ./scripts/auto-fix-cli.sh
    ```
 
-2. **Setup GitHub Secrets:**
-   ```bash
-   ./scripts/setup-github-secrets.sh
-   ```
-
-3. **Run backtest:**
-   ```bash
-   gh workflow run multi-strategy-backtest.yml
-   ```
-
-4. **Watch it work:**
+3. **Watch it work:**
    ```bash
    gh run watch
    ```
 
-5. **Read the full guide:**
+4. **Read the full guide:**
    [docs/AUTOMATION-GUIDE.md](./docs/AUTOMATION-GUIDE.md)
 
 ---
@@ -378,7 +299,7 @@ python3 scripts/debug-aisignal.py
 **Ready? Let's get automated!**
 
 ```bash
-cd ~/klarpakke && git pull && ./scripts/auto-fix-complete.sh
+cd ~/klarpakke && git pull && chmod +x scripts/auto-fix-cli.sh && ./scripts/auto-fix-cli.sh
 ```
 
 🚀 **Klarpakke** - Automated, transparent, risk-managed trading
