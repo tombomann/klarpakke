@@ -9,17 +9,16 @@
 ## 🆘 **AUTOMATISK OPPSETT - ETT KOMMANDO**
 
 ```bash
-cd ~/klarpakke && git pull && chmod +x scripts/auto-fix-cli.sh && ./scripts/auto-fix-cli.sh
+cd ~/klarpakke && git pull && chmod +x scripts/quick-constraint-fix.sh && ./scripts/quick-constraint-fix.sh
 ```
 
-**Dette fikser automatisk:**
+**Fikser automatisk:**
+- ✅ Direction constraint (case-insensitive)
 - ✅ Tester API & DB tilkobling
-- ✅ Verifiserer aisignal table
 - ✅ Inserterer test signal
 - ✅ Starter workflows
-- ✅ Viser database status
 
-**Ingen Docker nødvendig!** Bruker REST API for alt.
+**🚨 Getting constraint errors?** → **[Constraint Fix Guide](./CONSTRAINT-FIX-README.md)**
 
 ---
 
@@ -27,6 +26,7 @@ cd ~/klarpakke && git pull && chmod +x scripts/auto-fix-cli.sh && ./scripts/auto
 
 🎉 **Latest features deployed:**
 
+- 🔧 **Quick Constraint Fix** - Interactive script to fix direction constraint
 - 🔐 **GitHub Secrets** - Secure credential management (no more .env files!)
 - 🚨 **Auto-Issue Creation** - Automated debugging when errors occur
 - 📊 **Multi-Strategy Backtesting** - Test 2 strategies in parallel
@@ -65,6 +65,7 @@ Klarpakke is an **automated trading signal analysis system** that:
 
 | Guide | Description |
 |-------|-------------|
+| **[🔧 Constraint Fix](./CONSTRAINT-FIX-README.md)** | **Fix direction constraint errors** |
 | **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** | **Fix all issues automatically** |
 | **[🤖 Automation Guide](./docs/AUTOMATION-GUIDE.md)** | **Complete automation framework** |
 | [QUICKSTART.md](./QUICKSTART.md) | Quick reference for common tasks |
@@ -75,7 +76,27 @@ Klarpakke is an **automated trading signal analysis system** that:
 
 ## 🛠️ Quick Start
 
-### 1. Setup .env.local (One-Time)
+### 1. Fix Direction Constraint (CRITICAL)
+
+**If you get constraint errors:**
+
+```bash
+cd ~/klarpakke
+git pull
+chmod +x scripts/quick-constraint-fix.sh
+./scripts/quick-constraint-fix.sh
+```
+
+**This opens an interactive menu** with 3 options:
+1. SQL Editor (opens in browser) - **RECOMMENDED**
+2. Python script (automatic)
+3. Show SQL only
+
+📚 **[Full Constraint Fix Guide →](./CONSTRAINT-FIX-README.md)**
+
+---
+
+### 2. Setup .env.local (One-Time)
 
 ```bash
 cd ~/klarpakke
@@ -92,14 +113,18 @@ EOF
 # DB Password: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/database
 ```
 
-### 2. Run Auto-Fix
+---
+
+### 3. Run Auto-Fix
 
 ```bash
 chmod +x scripts/auto-fix-cli.sh
 ./scripts/auto-fix-cli.sh
 ```
 
-### 3. Watch Workflows
+---
+
+### 4. Watch Workflows
 
 ```bash
 # Install GitHub CLI if needed
@@ -142,14 +167,15 @@ gh workflow run multi-strategy-backtest.yml
 
 ## 🔧 Available Scripts
 
-### 🔐 Setup & Fix
+### 🔧 Fix & Setup
 
 | Script | Purpose |
 |--------|----------|
+| `quick-constraint-fix.sh` | **Fix direction constraint (interactive)** |
+| `fix-constraint-python.py` | Fix constraint via Python |
+| `fix-direction-constraint.sql` | SQL to fix constraint |
 | `auto-fix-cli.sh` | **Auto-fix via REST API (no Docker)** |
 | `setup-github-secrets.sh` | Migrate .env → GitHub Secrets |
-| `master-fix-and-test.sh` | Legacy fix (requires psql) |
-| `ultimate-setup.sh` | Full end-to-end setup |
 
 ### 📊 Analysis & Backtesting
 
@@ -167,8 +193,6 @@ gh workflow run multi-strategy-backtest.yml
 | `debug-aisignal.py` | Show table contents |
 | `fix-schema-cache.py` | Fix PostgREST cache |
 | `adaptive-insert-signal.py` | Smart test signal insert |
-
-**Full reference:** [docs/AUTOMATION-GUIDE.md#-scripts-reference](./docs/AUTOMATION-GUIDE.md#-scripts-reference)
 
 ---
 
@@ -195,6 +219,7 @@ gh workflow run multi-strategy-backtest.yml
 │  + Auto-Issue on Error  │ ← NEW!
 │  + Sentiment Boost      │ ← NEW!
 │  + Auto-Fix CLI         │ ← NEW!
+│  + Constraint Fix       │ ← NEW!
 │  - Fetch PENDING        │
 │  - Analyze confidence   │
 │  - Approve/Reject       │
@@ -224,6 +249,7 @@ gh workflow run multi-strategy-backtest.yml
 
 Your system is working when:
 
+- [ ] Direction constraint fixed (run `quick-constraint-fix.sh`)
 - [ ] `.env.local` created with real credentials
 - [ ] `./scripts/auto-fix-cli.sh` completes successfully
 - [ ] Database has test signal inserted
@@ -235,15 +261,19 @@ Your system is working when:
 
 ## 🐛 Troubleshooting
 
-**Having issues?** See [AUTO-FIX-README.md](./AUTO-FIX-README.md) or [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+**Having issues?**
+
+1. **Constraint errors?** → [Constraint Fix Guide](./CONSTRAINT-FIX-README.md)
+2. **Database errors?** → [Auto-Fix Guide](./AUTO-FIX-README.md)
+3. **Other issues?** → [Troubleshooting](./TROUBLESHOOTING.md)
 
 **Quick fixes:**
 ```bash
-# Fix everything automatically (no Docker needed)
-./scripts/auto-fix-cli.sh
+# Fix constraint
+./scripts/quick-constraint-fix.sh
 
-# Or legacy fix (requires psql)
-bash scripts/master-fix-and-test.sh
+# Fix everything else
+./scripts/auto-fix-cli.sh
 
 # Check API directly
 source .env.local
@@ -268,7 +298,8 @@ curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
 
 ## 📚 Learn More
 
-- **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** ← PROBLEMS? START HERE!
+- **[🔧 Constraint Fix Guide](./CONSTRAINT-FIX-README.md)** ← CONSTRAINT ERRORS? START HERE!
+- **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** ← DATABASE ISSUES? GO HERE!
 - **[🤖 Complete Automation Guide](./docs/AUTOMATION-GUIDE.md)**
 - [Quick Reference](./QUICKSTART.md)
 - [Troubleshooting](./TROUBLESHOOTING.md)
@@ -279,19 +310,24 @@ curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
 
 ## 🚀 Next Steps
 
-1. **Create .env.local** (see Quick Start above)
+1. **Fix constraint** (if needed):
+   ```bash
+   ./scripts/quick-constraint-fix.sh
+   ```
 
-2. **Run auto-fix:**
+2. **Create .env.local** (see Quick Start above)
+
+3. **Run auto-fix:**
    ```bash
    cd ~/klarpakke && git pull && ./scripts/auto-fix-cli.sh
    ```
 
-3. **Watch it work:**
+4. **Watch it work:**
    ```bash
    gh run watch
    ```
 
-4. **Read the full guide:**
+5. **Read the full guide:**
    [docs/AUTOMATION-GUIDE.md](./docs/AUTOMATION-GUIDE.md)
 
 ---
@@ -299,7 +335,7 @@ curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
 **Ready? Let's get automated!**
 
 ```bash
-cd ~/klarpakke && git pull && chmod +x scripts/auto-fix-cli.sh && ./scripts/auto-fix-cli.sh
+cd ~/klarpakke && git pull && ./scripts/quick-constraint-fix.sh
 ```
 
 🚀 **Klarpakke** - Automated, transparent, risk-managed trading
