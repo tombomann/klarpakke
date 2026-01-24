@@ -2,6 +2,9 @@
 
 Dette er prosjektets faste arbeidsregler for endringer i codebase/automation.
 
+## Omfang
+Denne policyen gjelder **alle endringer** i repoet (kode, scripts, workflows, dokumentasjon).
+
 ## Sikkerhets-gate (<85%)
 Hvis jeg er <85% sikker: STOPP.
 - Still 1–2 presise spørsmål (loggutdrag, exit code, OS, branch, secrets/permissions).
