@@ -10,3 +10,11 @@ migration-*.log
 # IDE
 .vscode/
 .idea/
+
+# Secrets (never commit)
+.env
+.env.*
+!.env.example
+
+# Dependencies (never commit)
+node_modules/
