@@ -1,0 +1,9 @@
+{
+  "pair": "BTC/USD",
+  "direction": "BUY", 
+  "confidence": 78.5,
+  "reasoning": "BTC/USD breaking resistance at $68k, strong volume, RSI oversold. Target $72k, SL $66k",
+  "entry": 68250,
+  "stop_loss": 66000,
+  "take_profit": 72000
+}
