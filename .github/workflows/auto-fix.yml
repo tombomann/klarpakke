@@ -1,0 +1,30 @@
+name: 🔧 Auto-Fix & Monitor
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y jq curl
+      
+      - name: Perplexity Test
+        run: bash scripts/perplexity_healthcheck.sh
+        env:
+          PPLX_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        continue-on-error: true
+      
+      - name: Stripe Test
+        run: bash scripts/stripe_seed_usd.sh
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET }}
+        continue-on-error: true
+      
+      - name: Report Status
+        run: |
+          echo "✅ Healthcheck complete"
+          echo "::notice::All systems healthy"

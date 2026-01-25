@@ -1,0 +1,12 @@
+{
+  "blueprint": {
+    "name": "Klarpakke GitHub → Webflow → Supabase",
+    "scenario": {
+      "flow": [
+        {"id": 1, "module": "webhook:CustomWebHook", "parameters": {"method": "POST"}},
+        {"id": 2, "module": "webflow:UpdateItem", "parameters": {"siteId": "YOUR_SITE_ID"}},
+        {"id": 3, "module": "http:MakeRequest", "parameters": {"url": "{{secrets.SUPABASE_URL}}"}}
+      ]
+    }
+  }
+}
