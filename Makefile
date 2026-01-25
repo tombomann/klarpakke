@@ -41,3 +41,15 @@ bubble-log-ready:
 	else \
 		echo "DB ready - export DATABASE_URL=..."; \
 	fi
+
+cleanup:
+	@echo "🧹 Running auto-cleanup..."
+	@bash scripts/auto-cleanup.sh
+
+status:
+	@gh run list --repo tombomann/klarpakke --limit 5
+
+open-actions:
+	@open "https://github.com/tombomann/klarpakke/actions"
+
+all: cleanup status open-actions
