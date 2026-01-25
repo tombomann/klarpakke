@@ -1,0 +1,16 @@
+name: 🌐 DNS Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy api.klarpakke.no
+        run: |
+          curl -X POST "https://api.domeneshop.no/v0/domains/${{ secrets.DOMENESHOP_DOMAIN_ID }}/dns" \
+            -u "${{ secrets.DOMENESHOP_USER }}:${{ secrets.DOMENESHOP_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"host":"api","ttl":3600,"type":"A","data":"${{ secrets.ORACLE_VM_IP }}"}'
+          echo "✅ DNS deployed"
