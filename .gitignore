@@ -18,3 +18,5 @@ migration-*.log
 
 # Dependencies (never commit)
 node_modules/
+.vercel
+.env*.local
