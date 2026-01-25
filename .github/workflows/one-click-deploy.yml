@@ -2,47 +2,67 @@ name: 🚀 One-Click Deploy
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
-
-permissions:
-  contents: write
-  actions: write
+    inputs:
+      action:
+        description: 'Action'
+        required: true
+        default: 'full-deploy'
+        type: choice
+        options:
+          - full-deploy
+          - dns-only
+          - backend-only
 
 jobs:
-  deploy-all:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       
-      - name: Trigger All Workflows
+      - name: 🌐 Update DNS
+        if: contains(github.event.inputs.action, 'dns') || github.event.inputs.action == 'full-deploy'
         run: |
-          echo "🚀 Triggering all workflows..."
-          
-          gh workflow run deploy-complete.yml || true
-          gh workflow run auto-cleanup.yml || true
-          gh workflow run auto-fix.yml || true
-          gh workflow run webflow-deploy.yml || true
-          gh workflow run ai-healthcheck.yml || true
-          
-          echo "✅ All workflows triggered!"
-        env:
-          GH_TOKEN: ${{ github.token }}
-      
-      - name: Wait and Check Status
+          curl -X POST "https://api.domeneshop.no/v0/domains/${{ secrets.DOMENESHOP_DOMAIN_ID }}/dns" \
+            -u "${{ secrets.DOMENESHOP_USER }}:${{ secrets.DOMENESHOP_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"host":"api","ttl":3600,"type":"A","data":"${{ secrets.ORACLE_VM_IP }}"}'
+
+      - name: 🔧 Deploy Backend
+        if: github.event.inputs.action == 'backend-only' || github.event.inputs.action == 'full-deploy'
         run: |
-          echo "⏳ Waiting 15s for workflows to start..."
-          sleep 15
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/key
+          chmod 600 ~/.ssh/key
           
-          echo "📊 Current workflow status:"
-          gh run list --repo ${{ github.repository }} --limit 10
-        env:
-          GH_TOKEN: ${{ github.token }}
-      
-      - name: Create Deployment Tag
-        run: |
-          TAG="deploy-$(date -u +'%Y%m%d-%H%M%S')"
-          git tag $TAG
-          git push origin $TAG
-          echo "✅ Created tag: $TAG"
+          ssh -i ~/.ssh/key -o StrictHostKeyChecking=no opc@${{ secrets.ORACLE_VM_IP }} << 'REMOTE'
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - 2>/dev/null || true
+            sudo apt-get install -y nodejs nginx 2>/dev/null || true
+            
+            mkdir -p ~/api
+            cat > ~/api/server.js << 'JS'
+require('http').createServer((req,res)=>{
+  res.writeHead(200, {'Content-Type': 'application/json'});
+  res.end(JSON.stringify({status:'running',endpoint:req.url,time:new Date()}));
+}).listen(3000);
+JS
+            
+            pkill -f "node.*server.js" || true
+            nohup node ~/api/server.js > ~/api/server.log 2>&1 &
+            
+            sudo tee /etc/nginx/sites-available/default > /dev/null << 'NGINX'
+server {
+  listen 80;
+  server_name api.klarpakke.no;
+  location / {
+    proxy_pass http://localhost:3000;
+    proxy_set_header Host $host;
+  }
+}
+NGINX
+            
+            sudo systemctl restart nginx
+          REMOTE
+
+      - name: ✅ Test
+        if: github.event.inputs.action == 'full-deploy'
+        run: sleep 5 && curl http://api.klarpakke.no
