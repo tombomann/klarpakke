@@ -1,0 +1,37 @@
+name: 🌐 Deploy to Webflow
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [webflow-trigger]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate Webflow CMS content
+        run: |
+          cat > webflow-cms.json << JSON
+          {
+            "pricing": {
+              "free": "$0/month",
+              "pro": "$49/month", 
+              "elite": "$99/month"
+            },
+            "ai_status": "🟢 Live",
+            "last_deploy": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "run_id": "${{ github.run_number }}"
+          }
+          JSON
+          cat webflow-cms.json
+      
+      - name: Upload to Webflow (placeholder)
+        run: |
+          echo "🚀 Would push to Webflow CMS:"
+          echo "   Site: klarpakke.no"
+          echo "   Collection: deployment_status"
+          echo "   API Token: $WEbfLOW_TOKEN"
+        env:
+          WEbfLOW_TOKEN: ${{ secrets.WEbfLOW_TOKEN }}
