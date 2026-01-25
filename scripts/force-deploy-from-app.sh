@@ -39,7 +39,7 @@ if [ ! -f "$REPO_DIR/.vercel" ]; then
 fi
 
 echo "Henter env fra Vercel (valgfritt)"
-vercel env pull .env.local development || true
+vercel env pull .env.local || true
 
 echo "Triggerer force deploy fra app-mappe"
 vercel --prod --yes --force --debug
