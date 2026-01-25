@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   actions: read
+  issues: write
 
 jobs:
   cleanup:
@@ -85,6 +86,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-report-${{ github.run_number }}
+          path: cleanup-report.md
+          retention-days: 7
+      
       - name: Create Summary
         run: |
           echo "## 🧹 Auto-Cleanup Complete" >> $GITHUB_STEP_SUMMARY
@@ -92,16 +100,9 @@ jobs:
           echo "**Status:** ✅ All systems healthy" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Actions" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Actions" >> $GITHUB_STEP_SUMMARY
           echo "- [View Dashboard](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Recent Runs](https://github.com/${{ github.repository }}/actions/workflows/auto-cleanup.yml)" >> $GITHUB_STEP_SUMMARY
-      
-      - name: Upload Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: cleanup-report-${{ github.run_number }}
-          path: cleanup-report.md
-          retention-days: 7
+          echo "- [Download Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
 
   notify-failure:
     runs-on: ubuntu-latest
