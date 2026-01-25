@@ -1,0 +1,55 @@
+name: 🧹 Auto-Cleanup
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Auto-cleanup artifacts
+        run: |
+          echo "🧹 Cleaning up generated files..."
+          
+          # Add generated files
+          git config user.name "klarpakke-bot"
+          git config user.email "bot@klarpakke.no"
+          
+          git add -A ai-sample.json stripe_usd_prices.env || true
+          
+          # Commit if changes
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: auto-cleanup generated artifacts [skip ci]"
+            git push origin main
+            echo "✅ Cleanup committed"
+          else
+            echo "✅ Nothing to cleanup"
+          fi
+      
+      - name: Status Report
+        run: |
+          echo "📊 Workflow Status:"
+          gh run list --repo ${{ github.repository }} --limit 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Create Summary
+        run: |
+          echo "## 🧹 Auto-Cleanup Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Recent Workflows" >> $GITHUB_STEP_SUMMARY
+          gh run list --repo ${{ github.repository }} --limit 5 | head -n 10 >> $GITHUB_STEP_SUMMARY || true
+        env:
+          GH_TOKEN: ${{ github.token }}
