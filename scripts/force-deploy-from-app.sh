@@ -1,29 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
-REPO_DIR="\$HOME/klarpakke"
-APP_DIR="\$REPO_DIR/app"
 
-echo "Working from \$APP_DIR"
-cd "\$APP_DIR"
+# Hvis du vil kjøre fra et annet sted, sett REPO_DIR før kjøring:
+# REPO_DIR=/path/to/repo ./scripts/force-deploy-from-app.sh
+REPO_DIR="${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+APP_DIR="$REPO_DIR/app"
 
-# Ensure dependencies
+echo "Working from $APP_DIR"
+
+if [ ! -d "$APP_DIR" ]; then
+  echo "ERROR: App-mappe ikke funnet: $APP_DIR"
+  exit 1
+fi
+
+cd "$APP_DIR"
+
 if [ -f package-lock.json ]; then
+  echo "Installerer avhengigheter med npm ci"
   npm ci
 else
+  echo "Installerer avhengigheter med npm install"
   npm install
 fi
 
-# Link project to Vercel if not linked
-if [ ! -f "\$REPO_DIR/.vercel" ]; then
-  echo "Linking project to Vercel. Follow prompts if any."
+echo "Kjører build"
+npm run build
+
+if ! command -v vercel >/dev/null 2>&1; then
+  echo "Vercel CLI ikke funnet. Installer: npm i -g vercel"
+  exit 1
+fi
+
+# Link prosjekt interaktivt første gang hvis nødvendig
+if [ ! -f "$REPO_DIR/.vercel" ]; then
+  echo "Linker prosjekt til Vercel. Følg eventuelle prompts..."
   vercel login || true
   vercel link --yes || true
 fi
 
-# Pull env vars from Vercel and update .env.local
+echo "Henter env fra Vercel (valgfritt)"
 vercel env pull .env.local development || true
 
-# Force deploy from app folder
+echo "Triggerer force deploy fra app-mappe"
 vercel --prod --yes --force --debug
 
-echo "Deploy command finished. Check Vercel dashboard for logs."
+echo "Deploy ferdig. Sjekk Vercel dashboard for detaljer."
