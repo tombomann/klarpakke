@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-01-23T23:40:18.658986+00:00",
+  "symbol": "ETH",
+  "sentiment": {
+    "reddit": {
+      "source": "reddit",
+      "symbol": "ETH",
+      "posts_analyzed": 50,
+      "positive": 32,
+      "negative": 18,
+      "sentiment_score": 0.64,
+      "confidence": "mock"
+    },
+    "twitter": {
+      "source": "twitter",
+      "symbol": "ETH",
+      "tweets_analyzed": 100,
+      "positive": 68,
+      "negative": 32,
+      "sentiment_score": 0.68,
+      "confidence": "mock"
+    }
+  },
+  "confidence": {
+    "base_confidence": 0.8,
+    "avg_sentiment": 0.66,
+    "adjustment": 0.048,
+    "adjusted_confidence": 0.848,
+    "recommendation": "BOOST"
+  }
+}
