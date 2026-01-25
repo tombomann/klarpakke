@@ -1,0 +1,164 @@
+name: 🚪 Oracle VM Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Recovery Action'
+        required: true
+        type: choice
+        options:
+          - diagnose
+          - start-vm
+          - full-recovery
+        default: 'diagnose'
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔧 Setup OCI CLI
+        run: |
+          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh -o install.sh
+          bash install.sh --accept-all-defaults
+          echo "${HOME}/bin" >> $GITHUB_PATH
+          
+      - name: 🔑 Configure OCI CLI
+        env:
+          OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+          OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_CLI_REGION: eu-stockholm-1
+        run: |
+          mkdir -p ~/.oci
+          
+          # Create OCI config
+          cat > ~/.oci/config << EOF
+          [DEFAULT]
+          user=$OCI_CLI_USER
+          fingerprint=$OCI_CLI_FINGERPRINT
+          tenancy=$OCI_CLI_TENANCY
+          region=$OCI_CLI_REGION
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+          
+          # Save private key
+          echo "$OCI_CLI_KEY_CONTENT" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          
+          echo "✅ OCI CLI configured"
+
+      - name: 🔍 Diagnose VM
+        id: diagnose
+        env:
+          VM_IP: ${{ secrets.ORACLE_VM_IP }}
+        run: |
+          echo "Testing connectivity to $VM_IP..."
+          
+          # Ping test
+          if ping -c 2 -W 3 "$VM_IP" >/dev/null 2>&1; then
+            echo "vm_reachable=true" >> $GITHUB_OUTPUT
+            echo "✅ VM is reachable (ping OK)"
+          else
+            echo "vm_reachable=false" >> $GITHUB_OUTPUT
+            echo "❌ VM is unreachable (ping timeout)"
+          fi
+          
+          # Find instance via OCI CLI
+          echo ""
+          echo "Searching for VM instances..."
+          
+          COMPARTMENT_ID=$(oci iam compartment list --query 'data[0].id' --raw-output)
+          
+          INSTANCES=$(oci compute instance list \
+            --compartment-id "$COMPARTMENT_ID" \
+            --region eu-stockholm-1 \
+            --query 'data[?"primary-public-ip"==`'"$VM_IP"'`]' \
+            --all)
+          
+          if [ "$INSTANCES" = "[]" ]; then
+            echo "vm_exists=false" >> $GITHUB_OUTPUT
+            echo "❌ No VM found with IP $VM_IP"
+            echo "🚨 VM may have been deleted!"
+          else
+            INSTANCE_ID=$(echo "$INSTANCES" | jq -r '.[0].id')
+            INSTANCE_STATE=$(echo "$INSTANCES" | jq -r '.[0]."lifecycle-state"')
+            INSTANCE_NAME=$(echo "$INSTANCES" | jq -r '.[0]."display-name"')
+            
+            echo "vm_exists=true" >> $GITHUB_OUTPUT
+            echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+            echo "instance_state=$INSTANCE_STATE" >> $GITHUB_OUTPUT
+            
+            echo "✅ Found VM: $INSTANCE_NAME"
+            echo "   ID: $INSTANCE_ID"
+            echo "   State: $INSTANCE_STATE"
+            echo "   IP: $VM_IP"
+          fi
+
+      - name: 🚀 Start VM
+        if: |
+          (github.event.inputs.action == 'start-vm' || github.event.inputs.action == 'full-recovery') &&
+          steps.diagnose.outputs.vm_exists == 'true' &&
+          steps.diagnose.outputs.instance_state == 'STOPPED'
+        env:
+          INSTANCE_ID: ${{ steps.diagnose.outputs.instance_id }}
+        run: |
+          echo "Starting VM $INSTANCE_ID..."
+          
+          oci compute instance action \
+            --instance-id "$INSTANCE_ID" \
+            --action START \
+            --region eu-stockholm-1
+          
+          echo "⏳ Waiting 120 seconds for VM to boot..."
+          sleep 120
+          
+          echo "✅ VM start command completed"
+
+      - name: ✅ Verify Recovery
+        if: github.event.inputs.action == 'full-recovery'
+        env:
+          VM_IP: ${{ secrets.ORACLE_VM_IP }}
+        run: |
+          echo "Testing VM connectivity after recovery..."
+          
+          if ping -c 3 -W 5 "$VM_IP" >/dev/null 2>&1; then
+            echo "🎉 VM is now reachable!"
+            echo ""
+            echo "Next steps:"
+            echo "1. Test SSH: ssh -i ~/.ssh/oracle_new opc@$VM_IP"
+            echo "2. Deploy backend: Run 'one-click-deploy' workflow"
+          else
+            echo "⚠️  VM still unreachable after recovery"
+            echo "Manual intervention may be required"
+            exit 1
+          fi
+
+      - name: 📊 Summary
+        if: always()
+        run: |
+          echo ""
+          echo "====================================="
+          echo "       RECOVERY SUMMARY"
+          echo "====================================="
+          echo ""
+          echo "VM Status: ${{ steps.diagnose.outputs.instance_state || 'Unknown' }}"
+          echo "VM Exists: ${{ steps.diagnose.outputs.vm_exists || 'Unknown' }}"
+          echo "Reachable: ${{ steps.diagnose.outputs.vm_reachable || 'Unknown' }}"
+          echo ""
+          
+          if [ "${{ steps.diagnose.outputs.vm_exists }}" = "false" ]; then
+            echo "🚨 ACTION REQUIRED: VM was deleted"
+            echo ""
+            echo "Recreate VM manually:"
+            echo "1. https://cloud.oracle.com/compute/instances/create"
+            echo "2. Name: klarpakke-vm"
+            echo "3. Shape: VM.Standard.E2.1.Micro (Always Free)"
+            echo "4. Image: Ubuntu 22.04"
+            echo "5. Update GitHub secret with new IP"
+          elif [ "${{ steps.diagnose.outputs.instance_state }}" = "RUNNING" ] && [ "${{ steps.diagnose.outputs.vm_reachable }}" = "false" ]; then
+            echo "⚠️  VM is running but unreachable"
+            echo ""
+            echo "Check firewall/security lists in Oracle Console"
+          fi
