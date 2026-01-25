@@ -1,34 +1,26 @@
-name: Build and Deploy to Vercel
+name: Build Test and Deploy to Vercel
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
-
 jobs:
-  build-and-deploy:
+  build-test-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Use Node 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 18 }
       - name: Install dependencies in app
         working-directory: ./app
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Run tests
+        working-directory: ./app
+        run: npm test
       - name: Build app
         working-directory: ./app
         run: npm run build
-
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
         with:
