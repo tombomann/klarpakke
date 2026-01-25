@@ -1,0 +1,48 @@
+name: 🚀 One-Click Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  deploy-all:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Trigger All Workflows
+        run: |
+          echo "🚀 Triggering all workflows..."
+          
+          gh workflow run deploy-complete.yml || true
+          gh workflow run auto-cleanup.yml || true
+          gh workflow run auto-fix.yml || true
+          gh workflow run webflow-deploy.yml || true
+          gh workflow run ai-healthcheck.yml || true
+          
+          echo "✅ All workflows triggered!"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Wait and Check Status
+        run: |
+          echo "⏳ Waiting 15s for workflows to start..."
+          sleep 15
+          
+          echo "📊 Current workflow status:"
+          gh run list --repo ${{ github.repository }} --limit 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
+      - name: Create Deployment Tag
+        run: |
+          TAG="deploy-$(date -u +'%Y%m%d-%H%M%S')"
+          git tag $TAG
+          git push origin $TAG
+          echo "✅ Created tag: $TAG"
