@@ -102,3 +102,27 @@ jobs:
           name: cleanup-report-${{ github.run_number }}
           path: cleanup-report.md
           retention-days: 7
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: cleanup
+    if: failure()
+    steps:
+      - name: Create Issue on Failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Auto-Cleanup Failed',
+              body: `## Auto-Cleanup Failure
+              
+              **Run:** [#${context.runNumber}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+              **Time:** ${new Date().toISOString()}
+              
+              The hourly auto-cleanup workflow failed. Please investigate.
+              
+              cc @tombomann`,
+              labels: ['automated', 'cleanup', 'urgent']
+            });
