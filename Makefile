@@ -30,7 +30,7 @@ edge-login: ## Login to Supabase
 edge-deploy: ## Deploy Edge Functions
 	@bash scripts/deploy-edge-functions.sh
 
-edge-secrets: ## Setup secrets (PERPLEXITY_API_KEY)
+edge-secrets: ## Setup secrets (PERPLEXITY_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 	@bash scripts/setup-secrets.sh
 
 edge-test: ## Test Edge Functions
@@ -68,6 +68,7 @@ gh-secrets: ## Setup GitHub secrets for Actions
 	@echo "🔐 Setting GitHub secrets..."
 	@gh secret set SUPABASE_URL --body "$$SUPABASE_URL"
 	@gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY"
+	@gh secret set SUPABASE_SECRET_KEY --body "$$SUPABASE_SECRET_KEY"
 	@echo "✅ GitHub secrets set"
 
 gh-sync-secrets: ## Sync GitHub secrets to Supabase Edge (via Actions)
