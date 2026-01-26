@@ -1,0 +1,212 @@
+{
+  "name": "Webflow Form → Supabase Positions",
+  "description": "User submits new position via Webflow form. Insert into Supabase positions table.",
+  "version": "1.0.0",
+  "flow": [
+    {
+      "id": 1,
+      "module": "webflow:TriggerFormSubmission",
+      "version": 1,
+      "parameters": {
+        "webhook": "{{WEBFLOW_WEBHOOK_URL}}"
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {},
+        "expect": [
+          {
+            "name": "symbol",
+            "type": "text",
+            "label": "Trading Symbol",
+            "required": true
+          },
+          {
+            "name": "entry_price",
+            "type": "number",
+            "label": "Entry Price",
+            "required": true
+          },
+          {
+            "name": "quantity",
+            "type": "number",
+            "label": "Quantity",
+            "required": true
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "User Email",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "symbol",
+            "value": "{{1.symbol}}"
+          },
+          {
+            "name": "entry_price",
+            "value": "{{parseNumber(1.entry_price)}}"
+          },
+          {
+            "name": "quantity",
+            "value": "{{parseNumber(1.quantity)}}"
+          },
+          {
+            "name": "user_id",
+            "value": "{{1.email}}"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": false
+      },
+      "mapper": {
+        "url": "https://{{env.SUPABASE_URL}}/rest/v1/positions",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_ANON_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_ANON_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "name": "Prefer",
+            "value": "return=representation"
+          }
+        ],
+        "qs": [],
+        "bodyType": "raw",
+        "parseResponse": true,
+        "authUser": "",
+        "authPass": "",
+        "timeout": "",
+        "shareCookies": false,
+        "ca": "",
+        "rejectUnauthorized": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "gzip": true,
+        "useMtls": false,
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "body": "{\n  \"symbol\": \"{{2.symbol}}\",\n  \"entry_price\": {{2.entry_price}},\n  \"quantity\": {{2.quantity}},\n  \"user_id\": \"{{2.user_id}}\",\n  \"status\": \"open\"\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "restore": {
+          "expect": {
+            "method": {
+              "mode": "chose",
+              "label": "POST"
+            },
+            "headers": {
+              "mode": "chose",
+              "items": [
+                null,
+                null,
+                null,
+                null
+              ]
+            },
+            "qs": {
+              "mode": "chose"
+            },
+            "bodyType": {
+              "label": "Raw"
+            },
+            "contentType": {
+              "label": "JSON (application/json)"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true
+      },
+      "mapper": {
+        "url": "https://{{env.SUPABASE_URL}}/rest/v1/ai_calls",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\n  \"endpoint\": \"/webflow-positions-insert\",\n  \"model\": \"webhook\",\n  \"response\": \"{{toString(3.data)}}\",\n  \"status\": {{3.statusCode}},\n  \"latency_ms\": {{floor(3.time)}}\n}",
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "parseResponse": false
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": false,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  }
+}
