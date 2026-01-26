@@ -30,7 +30,7 @@ edge-login: ## Login to Supabase
 edge-deploy: ## Deploy Edge Functions
 	@bash scripts/deploy-edge-functions.sh
 
-edge-secrets: ## Setup secrets (PERPLEXITY_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+edge-secrets: ## Setup Edge Function secrets (PERPLEXITY_API_KEY only, Supabase vars auto-injected)
 	@bash scripts/setup-secrets.sh
 
 edge-test: ## Test Edge Functions
