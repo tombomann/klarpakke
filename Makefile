@@ -15,7 +15,7 @@ NC     := \033[0m # No Color
 help: ## Show this help message
 	@echo "${GREEN}Klarpakke Makefile${NC}"
 	@echo "${YELLOW}Available targets:${NC}"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  ${GREEN}%-15s${NC} %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  ${GREEN}%-20s${NC} %s\n", $$1, $$2}'
 
 bootstrap: ## Complete setup from scratch (env + deploy + test)
 	@echo "${GREEN}[1/4] Setting up environment...${NC}"
@@ -76,26 +76,30 @@ ci: test ## Run CI pipeline (verify + smoke)
 	@echo "${GREEN}✅ CI passed!${NC}"
 
 # Make.com helpers
+make-setup: ## Generate Make.com environment variables file
+	@bash scripts/setup-make-env.sh
+
 make-import: ## Show instructions for importing Make.com scenarios
 	@echo "${GREEN}=== Make.com Import Instructions ===${NC}"
-	@echo "${YELLOW}1. Go to: https://eu1.make.com/scenarios${NC}"
+	@echo "${YELLOW}1. Go to: https://www.make.com/en/login${NC}"
 	@echo "${YELLOW}2. Click 'Create a new scenario'${NC}"
 	@echo "${YELLOW}3. Click '...' → 'Import Blueprint'${NC}"
 	@echo "${YELLOW}4. Upload JSON files from: make/scenarios/${NC}"
 	@echo ""
 	@echo "${GREEN}Available scenarios:${NC}"
-	@ls -1 make/scenarios/*.json | sed 's|make/scenarios/||' | sed 's|^|  - |'
+	@ls -1 make/scenarios/*.json 2>/dev/null | sed 's|make/scenarios/||' | sed 's|^|  - |' || echo "  No scenarios found"
 	@echo ""
-	@echo "${YELLOW}5. Configure environment variables in Make.com:${NC}"
-	@echo "  - SUPABASE_URL"
-	@echo "  - SUPABASE_ANON_KEY"
-	@echo "  - SUPABASE_SECRET_KEY"
-	@echo "  - WEBFLOW_API_TOKEN (for scenario 04)"
-	@echo "  - WEBFLOW_COLLECTION_ID (for scenario 04)"
+	@echo "${YELLOW}5. Setup environment variables:${NC}"
+	@echo "   Run: make make-setup"
+	@echo "   Then copy values from make/.env.make to Make.com"
+	@echo ""
+	@echo "${RED}IMPORTANT: Get Perplexity API key first!${NC}"
+	@echo "https://www.perplexity.ai/settings/api"
 
-make-status: ## Check which Make.com scenarios are configured
-	@echo "${YELLOW}This requires Make.com API access (not yet implemented)${NC}"
-	@echo "Visit: https://eu1.make.com/scenarios to check manually"
+make-config: make-setup ## Alias for make-setup
+
+make-auto: ## Attempt auto-configuration (requires Make.com API token)
+	@bash scripts/auto-configure-make.sh
 
 # Database helpers
 db-backup: ## Backup current database schema
@@ -114,3 +118,6 @@ docs: ## Open key documentation
 
 quickstart: ## Show quickstart guide
 	@cat DEPLOY-STEP-BY-STEP.md
+
+make-guide: ## Show Make.com setup guide
+	@cat .github/MAKE_IMPORT_GUIDE.md

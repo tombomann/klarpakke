@@ -3,28 +3,38 @@
   "flow": [
     {
       "id": 1,
-      "module": "perplexity:ApiCall",
-      "version": 1,
+      "module": "http:ActionSendData",
+      "version": 3,
       "parameters": {
-        "model": "sonar-pro",
-        "temperature": 0.3
+        "handleErrors": true
       },
       "mapper": {
-        "messages": [
+        "url": "https://api.perplexity.ai/chat/completions",
+        "method": "POST",
+        "headers": [
           {
-            "role": "system",
-            "content": "You are a crypto trading analyst. Analyze BTC/ETH and provide ONE actionable signal. Format: {symbol, direction (BUY/SELL), confidence (0-1), reasoning}"
+            "name": "Authorization",
+            "value": "Bearer {{env.PERPLEXITY_API_KEY}}"
           },
           {
-            "role": "user",
-            "content": "Analyze current crypto market. Provide trading signal for highest conviction play. Consider: price action, volume, sentiment, macro."
+            "name": "Content-Type",
+            "value": "application/json"
           }
-        ]
+        ],
+        "body": "{\n  \"model\": \"sonar-pro\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a crypto trading analyst. Analyze BTC/ETH and provide ONE actionable signal. Return ONLY valid JSON: {\\\"symbol\\\": \\\"BTC\\\", \\\"direction\\\": \\\"BUY\\\", \\\"confidence\\\": 0.75, \\\"reasoning\\\": \\\"your analysis\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze current crypto market. Provide trading signal for highest conviction play. Consider: price action, volume, sentiment, macro. Return ONLY the JSON object.\"\n    }\n  ],\n  \"temperature\": 0.3,\n  \"max_tokens\": 500\n}"
       },
       "metadata": {
         "designer": {
           "x": 0,
           "y": 0
+        },
+        "restore": {
+          "expect": {
+            "method": {
+              "mode": "chose",
+              "label": "POST"
+            }
+          }
         }
       }
     },
@@ -33,7 +43,7 @@
       "module": "json:ParseJSON",
       "version": 1,
       "mapper": {
-        "json": "{{1.choices[0].message.content}}"
+        "json": "{{1.data.choices[0].message.content}}"
       },
       "metadata": {
         "designer": {
@@ -47,8 +57,7 @@
       "module": "http:ActionSendData",
       "version": 3,
       "parameters": {
-        "handleErrors": true,
-        "useQuerystring": false
+        "handleErrors": true
       },
       "mapper": {
         "url": "{{env.SUPABASE_URL}}/rest/v1/signals",
@@ -71,9 +80,7 @@
             "value": "return=representation"
           }
         ],
-        "qs": [],
-        "bodyType": "raw",
-        "body": "{{toJSON({\n  \"symbol\": 2.symbol,\n  \"direction\": 2.direction,\n  \"confidence\": 2.confidence,\n  \"reason\": 2.reasoning,\n  \"ai_model\": \"perplexity-sonar-pro\",\n  \"status\": \"pending\"\n})}}"
+        "body": "{\n  \"symbol\": \"{{2.symbol}}\",\n  \"direction\": \"{{2.direction}}\",\n  \"confidence\": {{2.confidence}},\n  \"reason\": \"{{2.reasoning}}\",\n  \"ai_model\": \"perplexity-sonar-pro\",\n  \"status\": \"pending\"\n}"
       },
       "metadata": {
         "designer": {
@@ -82,10 +89,6 @@
         },
         "restore": {
           "expect": {
-            "bodyType": {
-              "mode": "chose",
-              "label": "Raw"
-            },
             "method": {
               "mode": "chose",
               "label": "POST"
@@ -98,7 +101,6 @@
       "id": 4,
       "module": "http:ActionSendData",
       "version": 3,
-      "parameters": {},
       "mapper": {
         "url": "{{env.SUPABASE_URL}}/rest/v1/daily_risk_meter?date=eq.{{formatDate(now; \"YYYY-MM-DD\")}}",
         "method": "GET",
@@ -117,6 +119,14 @@
         "designer": {
           "x": 900,
           "y": 0
+        },
+        "restore": {
+          "expect": {
+            "method": {
+              "mode": "chose",
+              "label": "GET"
+            }
+          }
         }
       }
     },
@@ -155,12 +165,20 @@
                     "value": "application/json"
                   }
                 ],
-                "body": "{{toJSON({\"status\": \"approved\"})}}"
+                "body": "{\"status\": \"approved\"}"
               },
               "metadata": {
                 "designer": {
                   "x": 1500,
                   "y": -100
+                },
+                "restore": {
+                  "expect": {
+                    "method": {
+                      "mode": "chose",
+                      "label": "PATCH"
+                    }
+                  }
                 }
               }
             }
@@ -190,12 +208,20 @@
                     "value": "application/json"
                   }
                 ],
-                "body": "{{toJSON({\"status\": \"rejected\", \"reason\": \"Risk limit exceeded\"})}}"
+                "body": "{\"status\": \"rejected\", \"reason\": \"Risk limit exceeded\"}"
               },
               "metadata": {
                 "designer": {
                   "x": 1500,
                   "y": 100
+                },
+                "restore": {
+                  "expect": {
+                    "method": {
+                      "mode": "chose",
+                      "label": "PATCH"
+                    }
+                  }
                 }
               }
             }
