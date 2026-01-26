@@ -1,0 +1,204 @@
+{
+  "name": "Perplexity Sonar → Supabase Signals (Hourly)",
+  "description": "Call Perplexity AI every hour for trading signals. Parse and insert into Supabase.",
+  "version": "1.0.0",
+  "schedule": {
+    "type": "interval",
+    "interval": 3600
+  },
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": 999999,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {},
+        "expect": [
+          {
+            "name": "trigger",
+            "type": "text",
+            "label": "Scheduled Trigger"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "https://api.perplexity.ai/chat/completions",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.PPLX_API_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "parseResponse": true,
+        "timeout": 30,
+        "body": "{\n  \"model\": \"sonar-pro\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Du er en profesjonell kryptomarkedsanalytiker. Analyser BTC, ETH, SOL. Gi konkrete BUY/SELL/HOLD signaler med confidence 0-100. Svar KUN med valid JSON i dette formatet: {\\\"signals\\\": [{\\\"symbol\\\": \\\"BTCUSD\\\", \\\"direction\\\": \\\"BUY\\\", \\\"confidence\\\": 75, \\\"reason\\\": \\\"Kort begrunnelse\\\"}]}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Gi meg trading signaler for de neste 4 timer basert på teknisk analyse og markedssentiment. Inkluder BTC, ETH, SOL.\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 512\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "json": "{{2.data.choices[0].message.content}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "restore": {
+          "expect": {
+            "json": {
+              "mode": "edit"
+            }
+          }
+        },
+        "expect": [
+          {
+            "name": "json",
+            "type": "text",
+            "label": "JSON string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "module": "builtin:BasicIterator",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "array": "{{3.signals}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        },
+        "restore": {
+          "expect": {
+            "array": {
+              "mode": "edit"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "https://{{env.SUPABASE_URL}}/rest/v1/signals",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "body": "{\n  \"symbol\": \"{{4.symbol}}\",\n  \"direction\": \"{{upper(4.direction)}}\",\n  \"confidence\": {{if(4.confidence; divide(4.confidence; 100); 0.5)}},\n  \"reason\": \"{{4.reason}}\",\n  \"ai_model\": \"perplexity-sonar\",\n  \"status\": \"pending\"\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 6,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "https://{{env.SUPABASE_URL}}/rest/v1/ai_calls",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "body": "{\n  \"endpoint\": \"/chat/completions\",\n  \"model\": \"sonar-pro\",\n  \"prompt\": \"Trading signals request\",\n  \"response\": \"{{toString(2.data.choices[0].message.content)}}\",\n  \"tokens_in\": {{2.data.usage.prompt_tokens}},\n  \"tokens_out\": {{2.data.usage.completion_tokens}},\n  \"cost_usd\": {{round(add(multiply(2.data.usage.prompt_tokens; 0.000003); multiply(2.data.usage.completion_tokens; 0.000015)); 6)}},\n  \"status\": {{2.statusCode}},\n  \"latency_ms\": {{floor(2.time)}}\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1500,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "scheduling": {
+        "type": "interval",
+        "interval": 3600
+      }
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  }
+}

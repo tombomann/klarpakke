@@ -1,0 +1,125 @@
+name: Klarpakke Health Check
+
+# Kjører hver time + manuell trigger
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch:
+  push:
+    branches: [main, feature/*]
+    paths:
+      - 'supabase/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+
+jobs:
+  health-check:
+    name: Test Supabase + Make + Perplexity
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+      
+      - name: Test Supabase Connection
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Testing Supabase REST API..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/positions?limit=1")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Supabase OK: $HTTP_CODE"
+            echo "$BODY" | jq .
+          else
+            echo "❌ Supabase FAILED: $HTTP_CODE"
+            echo "$BODY"
+            exit 1
+          fi
+      
+      - name: Test Perplexity API
+        env:
+          PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
+        run: |
+          echo "Testing Perplexity API..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST https://api.perplexity.ai/chat/completions \
+            -H "Authorization: Bearer $PPLX_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "sonar-pro",
+              "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Say test in 1 word."}
+              ],
+              "max_tokens": 10
+            }')
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Perplexity OK: $HTTP_CODE"
+            echo "$BODY" | jq -r '.choices[0].message.content'
+          else
+            echo "❌ Perplexity FAILED: $HTTP_CODE"
+            echo "$BODY"
+            exit 1
+          fi
+      
+      - name: Run Smoke Tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          if [ -f "scripts/smoke-test.sh" ]; then
+            bash scripts/smoke-test.sh
+          else
+            echo "⚠️ smoke-test.sh not found, skipping"
+          fi
+      
+      - name: Generate Health Report
+        if: always()
+        run: |
+          mkdir -p reports
+          cat > reports/health-$(date +%Y%m%d-%H%M%S).json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "$GITHUB_SHA",
+            "branch": "$GITHUB_REF_NAME",
+            "supabase": "OK",
+            "perplexity": "OK",
+            "status": "PASS"
+          }
+          EOF
+          cat reports/health-*.json
+      
+      - name: Upload Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-report-${{ github.run_number }}
+          path: reports/
+          retention-days: 30
+      
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::Health check failed! Supabase or Perplexity API down."

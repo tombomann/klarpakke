@@ -1,0 +1,169 @@
+{
+  "name": "Supabase Risk Meter → Webflow Dashboard (Every 5 min)",
+  "description": "Fetch latest risk data from Supabase and update Webflow CMS collection every 5 minutes.",
+  "version": "1.0.0",
+  "schedule": {
+    "type": "interval",
+    "interval": 300
+  },
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": 999998,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "https://{{env.SUPABASE_URL}}/rest/v1/daily_risk_meter",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_ANON_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_ANON_KEY}}"
+          }
+        ],
+        "qs": [
+          {
+            "name": "date",
+            "value": "eq.{{formatDate(now; \"YYYY-MM-DD\")}}"
+          },
+          {
+            "name": "order",
+            "value": "created_at.desc"
+          },
+          {
+            "name": "limit",
+            "value": "1"
+          }
+        ],
+        "parseResponse": true
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "risk_used_usd",
+            "value": "{{if(length(2.data) > 0; 2.data[1].total_risk_usd; 0)}}"
+          },
+          {
+            "name": "risk_percent",
+            "value": "{{if(length(2.data) > 0; 2.data[1].risk_percent; 0)}}"
+          },
+          {
+            "name": "positions_count",
+            "value": "{{if(length(2.data) > 0; 2.data[1].active_positions_count; 0)}}"
+          },
+          {
+            "name": "max_risk",
+            "value": "{{if(length(2.data) > 0; 2.data[1].max_risk_allowed; 5000)}}"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "https://api.webflow.com/v2/collections/{{env.WEBFLOW_RISK_COLLECTION_ID}}/items/{{env.WEBFLOW_RISK_ITEM_ID}}",
+        "method": "PATCH",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.WEBFLOW_API_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "body": "{\n  \"fieldData\": {\n    \"risk-used-usd\": {{3.risk_used_usd}},\n    \"risk-percent\": {{3.risk_percent}},\n    \"positions-count\": {{3.positions_count}},\n    \"max-risk-usd\": {{3.max_risk}},\n    \"last-updated\": \"{{formatDate(now; \"YYYY-MM-DD HH:mm:ss\")}}\"\n  }\n}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "sequential": false,
+      "scheduling": {
+        "type": "interval",
+        "interval": 300
+      }
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  },
+  "notes": [
+    {
+      "note": "Environment Variables Required:",
+      "variables": [
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "WEBFLOW_API_KEY",
+        "WEBFLOW_RISK_COLLECTION_ID",
+        "WEBFLOW_RISK_ITEM_ID"
+      ]
+    },
+    {
+      "note": "Webflow Collection Setup:",
+      "fields": [
+        "risk-used-usd (Number)",
+        "risk-percent (Number)",
+        "positions-count (Number)",
+        "max-risk-usd (Number)",
+        "last-updated (Plain Text)"
+      ]
+    }
+  ]
+}
