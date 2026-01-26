@@ -1,21 +1,23 @@
--- Klarpakke Database Setup
+-- Klarpakke Database Setup (FIXED ORDER)
 -- Deploy this in Supabase SQL Editor:
 -- https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/editor
 
 -- ============================================
--- STEP 1: Clean slate (drop existing tables)
+-- STEP 1: Drop triggers and functions FIRST
+-- ============================================
+DROP TRIGGER IF EXISTS trigger_update_risk_meter ON positions;
+DROP FUNCTION IF EXISTS update_risk_meter();
+
+-- ============================================
+-- STEP 2: Drop existing tables
 -- ============================================
 DROP TABLE IF EXISTS ai_calls CASCADE;
 DROP TABLE IF EXISTS daily_risk_meter CASCADE;
 DROP TABLE IF EXISTS signals CASCADE;
 DROP TABLE IF EXISTS positions CASCADE;
 
--- Drop old triggers/functions
-DROP TRIGGER IF EXISTS trigger_update_risk_meter ON positions;
-DROP FUNCTION IF EXISTS update_risk_meter();
-
 -- ============================================
--- STEP 2: Create tables from scratch
+-- STEP 3: Create tables from scratch
 -- ============================================
 
 -- POSITIONS: Åpne og lukkede trading posisjoner
@@ -97,7 +99,7 @@ CREATE INDEX idx_ai_calls_created_at ON ai_calls(created_at DESC);
 CREATE INDEX idx_ai_calls_model ON ai_calls(model);
 
 -- ============================================
--- STEP 3: Row-Level Security (RLS)
+-- STEP 4: Row-Level Security (RLS)
 -- ============================================
 ALTER TABLE positions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
@@ -140,7 +142,7 @@ CREATE POLICY "Allow insert ai_calls"
   ON ai_calls FOR INSERT WITH CHECK (true);
 
 -- ============================================
--- STEP 4: Functions & Triggers
+-- STEP 5: Functions (AFTER tables exist)
 -- ============================================
 CREATE OR REPLACE FUNCTION update_risk_meter()
 RETURNS TRIGGER AS $$
@@ -161,21 +163,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ============================================
+-- STEP 6: Triggers (AFTER function exists)
+-- ============================================
 CREATE TRIGGER trigger_update_risk_meter
 AFTER INSERT OR UPDATE OR DELETE ON positions
 FOR EACH ROW
 EXECUTE FUNCTION update_risk_meter();
 
 -- ============================================
--- STEP 5: Initial data
+-- STEP 7: Initial data
 -- ============================================
 INSERT INTO daily_risk_meter (date, total_risk_usd, max_risk_allowed, active_positions_count)
 VALUES (CURRENT_DATE, 0, 5000, 0)
 ON CONFLICT (date) DO NOTHING;
 
 -- ============================================
--- VERIFICATION QUERIES
+-- Success message
 -- ============================================
--- Run these after to verify:
--- SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
--- SELECT * FROM daily_risk_meter;
+SELECT 'Database setup complete! ✅' AS status;
