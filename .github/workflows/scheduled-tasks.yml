@@ -1,0 +1,30 @@
+name: Scheduled Trading Tasks
+
+on:
+  schedule:
+    # Generate signal: Every 4 hours
+    - cron: '0 */4 * * *'
+    # Update positions: Every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  generate-signal:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */4 * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Call Edge Function - Generate Signal
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/generate-trading-signal" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json"
+
+  update-positions:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Call Edge Function - Update Positions
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/update-positions" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json"

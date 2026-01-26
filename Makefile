@@ -1,127 +1,74 @@
-# Klarpakke Makefile - Automation-first DevSecOps
-# Usage: make <target>
+# Klarpakke Makefile - Full Automation
+.PHONY: help bootstrap deploy test
 
-.PHONY: help bootstrap deploy test kpi clean verify
-
-# Colors
-GREEN  := \033[0;32m
-YELLOW := \033[0;33m
-RED    := \033[0;31m
-NC     := \033[0m # No Color
-
-# Default target
 .DEFAULT_GOAL := help
 
-help: ## Show this help message
-	@echo "${GREEN}Klarpakke Makefile${NC}"
-	@echo "${YELLOW}Available targets:${NC}"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  ${GREEN}%-20s${NC} %s\n", $$1, $$2}'
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
-bootstrap: ## Complete setup from scratch (env + deploy + test)
-	@echo "${GREEN}[1/4] Setting up environment...${NC}"
+bootstrap: ## Complete setup from scratch
+	@echo "🚀 Klarpakke Full Automation Setup"
+	@echo "==================================="
 	@bash scripts/quick-fix-env.sh
-	@echo "${GREEN}[2/4] Deploying database schema...${NC}"
-	@bash scripts/auto-deploy-sql.sh || echo "${YELLOW}Manual deploy needed - see DEPLOY-STEP-BY-STEP.md${NC}"
-	@echo "${GREEN}[3/4] Verifying tables...${NC}"
 	@bash scripts/verify-tables.sh
-	@echo "${GREEN}[4/4] Running smoke tests...${NC}"
 	@bash scripts/smoke-test.sh
-	@echo "${GREEN}✅ Bootstrap complete!${NC}"
+	@echo ""
+	@echo "✅ Bootstrap complete!"
+	@echo ""
+	@echo "Next: Deploy Edge Functions"
+	@echo "  make edge-deploy"
 
-deploy: ## Deploy database schema to Supabase
-	@echo "${GREEN}Deploying schema...${NC}"
-	@bash scripts/auto-deploy-sql.sh || (echo "${RED}Auto-deploy failed. Manual steps:${NC}" && cat DEPLOY-STEP-BY-STEP.md)
+# Edge Functions
+edge-install: ## Install Supabase CLI
+	@echo "📦 Installing Supabase CLI..."
+	@brew install supabase/tap/supabase || npm install -g supabase
+	@echo "✅ Supabase CLI installed"
 
-test: verify smoke ## Run all tests (verify + smoke)
+edge-login: ## Login to Supabase
+	@supabase login
 
-verify: ## Verify API endpoints exist
-	@echo "${GREEN}Verifying database tables...${NC}"
+edge-deploy: ## Deploy Edge Functions
+	@bash scripts/deploy-edge-functions.sh
+
+edge-secrets: ## Setup secrets (PERPLEXITY_API_KEY)
+	@bash scripts/setup-secrets.sh
+
+edge-test: ## Test Edge Functions locally
+	@supabase functions invoke generate-trading-signal --project-ref swfyuwkptusceiouqlks
+
+edge-logs: ## View Edge Function logs
+	@supabase functions logs generate-trading-signal --project-ref swfyuwkptusceiouqlks
+
+edge-full: edge-deploy edge-secrets edge-test ## Deploy + setup secrets + test
+
+# GitHub Actions
+gh-secrets: ## Setup GitHub secrets for Actions
+	@echo "Setting GitHub secrets..."
+	@gh secret set SUPABASE_URL < .env
+	@gh secret set SUPABASE_ANON_KEY < .env
+	@echo "✅ GitHub secrets set"
+
+# Testing
+test: ## Run all tests
 	@bash scripts/verify-tables.sh
+	@bash scripts/smoke-test.sh
 
 smoke: ## Run smoke tests
-	@echo "${GREEN}Running smoke tests...${NC}"
 	@bash scripts/smoke-test.sh
 
-kpi: ## Export KPIs (last 30 days)
-	@echo "${GREEN}Exporting KPIs...${NC}"
-	@bash scripts/export-kpis.sh 30
+status: ## Show system status
+	@echo "=== Klarpakke Status ==="
+	@test -f .env && echo "✅ .env exists" || echo "❌ .env missing"
+	@bash scripts/verify-tables.sh 2>/dev/null | grep -E '✅|❌' || echo "⚠️ Unable to check DB"
 
-kpi-90: ## Export KPIs (last 90 days)
-	@bash scripts/export-kpis.sh 90
-
-clean: ## Clean generated files (backups, logs)
-	@echo "${YELLOW}Cleaning temporary files...${NC}"
-	@rm -f *.backup.sql
-	@rm -f *.log
-	@echo "${GREEN}✅ Clean complete${NC}"
-
-status: ## Show current system status
-	@echo "${GREEN}=== Klarpakke Status ===${NC}"
-	@echo "${YELLOW}Environment:${NC}"
-	@test -f .env && echo "  ✅ .env exists" || echo "  ❌ .env missing"
-	@echo "${YELLOW}Database:${NC}"
-	@bash scripts/verify-tables.sh 2>/dev/null | grep -E '✅|❌' || echo "  ⚠️  Unable to check"
-	@echo "${YELLOW}Last deployment:${NC}"
-	@git log -1 --format="  %h - %s (%ar)" -- DEPLOY-NOW.sql 2>/dev/null || echo "  No deployment history"
-
-watch: ## Watch for changes and auto-test (requires fswatch)
-	@command -v fswatch >/dev/null 2>&1 || (echo "${RED}fswatch not installed. Run: brew install fswatch${NC}" && exit 1)
-	@echo "${GREEN}Watching for changes...${NC}"
-	@fswatch -o scripts/ DEPLOY-NOW.sql | xargs -n1 -I{} make test
-
-# Development shortcuts
-dev: bootstrap ## Alias for bootstrap
-
-ci: test ## Run CI pipeline (verify + smoke)
-	@echo "${GREEN}✅ CI passed!${NC}"
-
-# Make.com helpers
-make-setup: ## Generate Make.com environment variables file
-	@bash scripts/setup-make-env.sh
-
-make-check: ## Verify Make.com environment is ready
-	@bash scripts/check-make-ready.sh
-
-make-ready: make-setup make-check ## Setup and verify Make.com environment
-
-make-import: ## Show instructions for importing Make.com scenarios
-	@echo "${GREEN}=== Make.com Import Instructions ===${NC}"
-	@echo "${YELLOW}1. Verify readiness: make make-check${NC}"
-	@echo "${YELLOW}2. Go to: https://www.make.com/en/scenarios${NC}"
-	@echo "${YELLOW}3. Click 'Create a new scenario'${NC}"
-	@echo "${YELLOW}4. Click '...' → 'Import Blueprint'${NC}"
-	@echo "${YELLOW}5. Upload: make/scenarios/01-trading-signal-generator.json${NC}"
+# Quick commands
+auto: edge-full gh-secrets ## Full automation setup
 	@echo ""
-	@echo "${GREEN}Available scenarios:${NC}"
-	@ls -1 make/scenarios/*.json 2>/dev/null | sed 's|make/scenarios/||' | sed 's|^|  - |' || echo "  No scenarios found"
+	@echo "🎉 FULL AUTOMATION DEPLOYED!"
 	@echo ""
-	@echo "${YELLOW}6. Configure environment variables in Make.com:${NC}"
-	@echo "   Copy from: make/.env.make"
+	@echo "What's running:"
+	@echo "  ✅ Edge Functions (serverless)"
+	@echo "  ✅ GitHub Actions (scheduled)"
 	@echo ""
-	@echo "${RED}Run 'make make-check' first to verify setup!${NC}"
-
-make-config: make-setup ## Alias for make-setup
-
-make-auto: ## Attempt auto-configuration (requires Make.com API token)
-	@bash scripts/auto-configure-make.sh
-
-# Database helpers
-db-backup: ## Backup current database schema
-	@echo "${GREEN}Creating backup...${NC}"
-	@cp DEPLOY-NOW.sql DEPLOY-NOW.backup-$$(date +%Y%m%d-%H%M%S).sql
-	@echo "${GREEN}✅ Backup created${NC}"
-
-db-logs: ## Show recent database activity (requires Supabase CLI)
-	@command -v supabase >/dev/null 2>&1 || (echo "${RED}Supabase CLI not installed${NC}" && exit 1)
-	@supabase logs --project-ref swfyuwkptusceiouqlks --limit 20
-
-# Documentation
-docs: ## Open key documentation
-	@echo "${GREEN}Opening documentation...${NC}"
-	@open "https://github.com/tombomann/klarpakke/blob/main/README.md" || cat README.md
-
-quickstart: ## Show quickstart guide
-	@cat DEPLOY-STEP-BY-STEP.md
-
-make-guide: ## Show Make.com setup guide
-	@cat .github/MAKE_IMPORT_GUIDE.md
+	@echo "Manual trigger:"
+	@echo "  gh workflow run scheduled-tasks.yml"
