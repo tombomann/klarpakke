@@ -73,6 +73,9 @@ serve(async (req) => {
       auth: {
         autoRefreshToken: false,
         persistSession: false
+      },
+      db: {
+        schema: 'public'
       }
     })
     
