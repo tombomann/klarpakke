@@ -7,6 +7,11 @@ set -euo pipefail
 DAYS="${1:-30}"
 OUTPUT="${2:-reports/kpis-$(date +%Y-%m-%d).json}"
 
+# Auto-load .env if present
+if [ -f ".env" ]; then
+    source .env
+fi
+
 # Check for required env vars
 if [ -z "${SUPABASE_URL:-}" ]; then
     echo "❌ Missing SUPABASE_URL environment variable"
