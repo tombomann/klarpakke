@@ -4,6 +4,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY')!
+// Supabase automatically injects these - no secrets needed
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -17,6 +18,11 @@ interface TradingSignal {
 serve(async (req) => {
   try {
     console.log('🤖 Generating trading signal...')
+    console.log('Environment check:', {
+      hasPerplexityKey: !!PERPLEXITY_API_KEY,
+      hasSupabaseUrl: !!SUPABASE_URL,
+      hasServiceKey: !!SUPABASE_SERVICE_KEY
+    })
 
     // 1. Call Perplexity AI
     const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -63,7 +69,12 @@ serve(async (req) => {
     console.log('📊 Signal generated:', signal)
 
     // 2. Insert to Supabase
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
     
     const { data: insertedSignal, error: insertError } = await supabase
       .from('signals')
@@ -78,7 +89,10 @@ serve(async (req) => {
       .select()
       .single()
 
-    if (insertError) throw insertError
+    if (insertError) {
+      console.error('Insert error:', insertError)
+      throw insertError
+    }
 
     console.log('✅ Signal inserted:', insertedSignal.id)
 
@@ -121,7 +135,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ Error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack 
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
