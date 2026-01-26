@@ -1,341 +1,321 @@
-# 📊 Klarpakke - Intelligent Trading Signal Analysis
+# 🚀 Klarpakke - AI Trading Automation Platform
 
-> Automated, risk-managed trading signal analysis for small investors
+> **Web-first trading pipeline**: Signal → Risk → Execution → Logging  
+> Built with: Webflow + Make.com + Supabase + Perplexity AI
 
-[![Trading Analysis](https://github.com/tombomann/klarpakke/actions/workflows/trading-analysis.yml/badge.svg)](https://github.com/tombomann/klarpakke/actions/workflows/trading-analysis.yml)
+[![Deploy & Test](https://github.com/tombomann/klarpakke/actions/workflows/deploy.yml/badge.svg)](https://github.com/tombomann/klarpakke/actions/workflows/deploy.yml)
 
 ---
 
-## 🆘 **AUTOMATISK OPPSETT - ETT KOMMANDO**
+## ⚡ Quickstart (5 minutes)
 
+### 1. Clone & Setup
 ```bash
-cd ~/klarpakke && git pull && chmod +x scripts/quick-constraint-fix.sh && ./scripts/quick-constraint-fix.sh
+git clone https://github.com/tombomann/klarpakke.git
+cd klarpakke
+make bootstrap
 ```
 
-**Fikser automatisk:**
-- ✅ Direction constraint (case-insensitive)
-- ✅ Tester API & DB tilkobling
-- ✅ Inserterer test signal
-- ✅ Starter workflows
+**What this does:**
+- ✅ Creates `.env` with your Supabase credentials
+- ✅ Deploys database schema (4 tables)
+- ✅ Verifies API endpoints
+- ✅ Runs smoke tests
 
-**🚨 Getting constraint errors?** → **[Constraint Fix Guide](./CONSTRAINT-FIX-README.md)**
+### 2. Verify
+```bash
+make test
+```
+
+**Expected output:**
+```
+✅ Table 'positions' exists
+✅ Table 'signals' exists  
+✅ Table 'daily_risk_meter' exists
+✅ Table 'ai_calls' exists
+✅ INSERT works
+✅ SELECT works
+✅ Risk meter OK
+```
+
+### 3. Import Make.com Scenarios
+```bash
+make make-import
+```
+
+Follow instructions to import 4 automation blueprints:
+1. **Trading Signal Generator** - Perplexity → Supabase
+2. **Position Tracker** - 15min PnL updates
+3. **Daily Risk Reset** - 00:00 UTC cleanup
+4. **Webflow Sync** - Approved signals → CMS
 
 ---
 
-## 🆕 **NEW: Advanced Automation**
+## 🗂️ Project Structure
 
-🎉 **Latest features deployed:**
-
-- 🔧 **Quick Constraint Fix** - Interactive script to fix direction constraint
-- 🔐 **GitHub Secrets** - Secure credential management (no more .env files!)
-- 🚨 **Auto-Issue Creation** - Automated debugging when errors occur
-- 📊 **Multi-Strategy Backtesting** - Test 2 strategies in parallel
-- 💬 **Sentiment Aggregation** - Reddit + Twitter sentiment analysis
-- 🤖 **Auto-Fix CLI** - REST API-based setup (no Docker needed)
-
-📚 **[READ THE COMPLETE AUTOMATION GUIDE →](./docs/AUTOMATION-GUIDE.md)**
+```
+klarpakke/
+├── DEPLOY-NOW.sql              # Database schema (copy-paste to Supabase)
+├── Makefile                    # Automation commands
+├── .env                        # Credentials (git-ignored)
+├── scripts/
+│   ├── smoke-test.sh          # Full system verification
+│   ├── verify-tables.sh       # Check API endpoints
+│   ├── export-kpis.sh         # Generate reports
+│   └── quick-fix-env.sh       # Setup .env
+├── make/scenarios/
+│   ├── 01-trading-signal-generator.json
+│   ├── 02-position-tracker.json
+│   ├── 03-daily-risk-reset.json
+│   └── 04-webflow-sync.json
+└── .github/workflows/
+    └── deploy.yml             # CI/CD pipeline
+```
 
 ---
 
-## 🎯 What is Klarpakke?
+## 📊 Database Schema
 
-Klarpakke is an **automated trading signal analysis system** that:
+### Tables
 
-1. **Receives** AI-generated trading signals (via Webflow/Bubble/API)
-2. **Analyzes** signals based on confidence scores and risk parameters
-3. **Approves/Rejects** automatically using configurable thresholds
-4. **Logs** all decisions with reasoning for audit trail
-5. **Executes** approved trades (via Make.com integration - optional)
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| `positions` | Active trades | `symbol`, `entry_price`, `pnl_usd`, `status` |
+| `signals` | AI trade ideas | `symbol`, `direction`, `confidence`, `status` |
+| `daily_risk_meter` | Risk tracking | `total_risk_usd`, `max_risk_allowed`, `date` |
+| `ai_calls` | API usage logs | `endpoint`, `tokens_in`, `cost_usd` |
 
-### Key Features
+### RLS Policies
+- **Read**: Public (anon key)
+- **Write**: Authenticated (service_role key)
 
-✅ **Fully Automated** - Runs every 5 minutes via GitHub Actions  
-✅ **Risk-Managed** - Configurable approval thresholds (default: 75% confidence)  
-✅ **Auditable** - Every decision logged with timestamp and reasoning  
-✅ **Adaptive** - Works with multiple schema variations  
-✅ **Self-Healing** - Automatic schema cache refresh and error recovery  
-✅ **Zero-Cost** - Runs on GitHub Actions free tier  
-✅ **Auto-Debugging** - Creates GitHub issues on errors  
-✅ **Sentiment-Aware** - Integrates community sentiment  
-✅ **Auto-Fix** - One command repairs all issues (no Docker!)  
+---
+
+## 🛠️ Makefile Commands
+
+### Core
+```bash
+make help          # Show all commands
+make bootstrap     # Complete setup from scratch
+make deploy        # Deploy database schema
+make test          # Run verify + smoke tests
+make kpi           # Export KPIs (30 days)
+```
+
+### Development
+```bash
+make status        # Show system status
+make clean         # Remove temp files
+make watch         # Auto-test on file changes (requires fswatch)
+```
+
+### Make.com
+```bash
+make make-import   # Import scenario instructions
+make make-status   # Check configured scenarios
+```
+
+### Database
+```bash
+make db-backup     # Backup schema
+make db-logs       # View Supabase logs (requires CLI)
+```
+
+---
+
+## 🔧 Make.com Scenarios
+
+### 1. Trading Signal Generator
+**Trigger**: Manual/Scheduled  
+**Flow**:
+1. Call Perplexity API (sonar-pro)
+2. Parse JSON signal
+3. Insert to `signals` table
+4. Check `daily_risk_meter`
+5. Auto-approve if risk < $4000
+
+### 2. Position Tracker
+**Trigger**: Every 15 minutes  
+**Flow**:
+1. Fetch open positions
+2. Get current prices (Binance API)
+3. Calculate PnL
+4. Update `positions` table
+
+### 3. Daily Risk Reset
+**Trigger**: Daily 00:00 UTC  
+**Flow**:
+1. Count open positions
+2. Sum total risk
+3. Insert new `daily_risk_meter` row
+4. Archive old data (>90 days)
+
+### 4. Webflow Sync
+**Trigger**: Supabase webhook (approved signals)  
+**Flow**:
+1. Receive webhook
+2. Push to Webflow CMS collection
+3. Publish live
+
+---
+
+## 🔐 Environment Setup
+
+### Required Variables
+
+Create `.env` (or run `make bootstrap`):
+
+```bash
+# Supabase (from https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/api)
+SUPABASE_URL=https://swfyuwkptusceiouqlks.supabase.co
+SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SECRET_KEY=eyJhbGc...  # service_role key
+
+# Make.com (configure in scenario variables)
+WEBFLOW_API_TOKEN=...
+WEBFLOW_COLLECTION_ID=...
+```
+
+### GitHub Secrets (for CI/CD)
+
+Add to: `https://github.com/tombomann/klarpakke/settings/secrets/actions`
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SECRET_KEY`
+
+---
+
+## 🧪 Testing
+
+### Manual Tests
+
+1. **Verify tables exist:**
+   ```bash
+   bash scripts/verify-tables.sh
+   ```
+
+2. **Full smoke test:**
+   ```bash
+   bash scripts/smoke-test.sh
+   ```
+
+3. **Test signal insert:**
+   ```bash
+   curl -X POST "$SUPABASE_URL/rest/v1/signals" \
+     -H "apikey: $SUPABASE_SECRET_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"symbol":"BTC","direction":"BUY","confidence":0.8}'
+   ```
+
+### CI/CD
+
+GitHub Actions runs on:
+- Push to `main` (if `DEPLOY-NOW.sql` or `scripts/` changed)
+- Pull requests
+- Manual trigger
+
+**Pipeline:**
+1. Setup environment
+2. Verify tables
+3. Run smoke tests
+4. Notify on failure
+
+---
+
+## 📈 KPI Export
+
+```bash
+make kpi        # Last 30 days
+make kpi-90     # Last 90 days
+```
+
+**Outputs:**
+- Win rate
+- Average R (reward/risk)
+- Max drawdown
+- Total signals
+- Approved/rejected ratio
+
+---
+
+## 🚨 Troubleshooting
+
+### Tables not found (404)
+
+```bash
+# 1. Verify in Supabase SQL Editor
+open "https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/editor"
+
+# 2. Run this SQL:
+SELECT tablename FROM pg_tables WHERE schemaname = 'public';
+
+# 3. Refresh schema cache:
+NOTIFY pgrst, 'reload schema';
+
+# 4. Test again:
+make verify
+```
+
+### Smoke test fails
+
+```bash
+# Check .env:
+cat .env
+
+# Verify credentials:
+curl -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/"
+
+# Re-run setup:
+make bootstrap
+```
+
+### Make.com scenarios fail
+
+1. Check environment variables in Make.com
+2. Verify webhook URLs are correct
+3. Test API calls manually:
+   ```bash
+   curl "$SUPABASE_URL/rest/v1/signals" \
+     -H "apikey: $SUPABASE_ANON_KEY"
+   ```
 
 ---
 
 ## 📚 Documentation
 
-| Guide | Description |
-|-------|-------------|
-| **[🔧 Constraint Fix](./CONSTRAINT-FIX-README.md)** | **Fix direction constraint errors** |
-| **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** | **Fix all issues automatically** |
-| **[🤖 Automation Guide](./docs/AUTOMATION-GUIDE.md)** | **Complete automation framework** |
-| [QUICKSTART.md](./QUICKSTART.md) | Quick reference for common tasks |
-| [README-AUTOMATION.md](./README-AUTOMATION.md) | Legacy automation guide |
-| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Problem solving and diagnostics |
+- [Supabase API Docs](https://supabase.com/docs/guides/api)
+- [Make.com Webhooks](https://www.make.com/en/help/tools/webhooks)
+- [Webflow API v2](https://developers.webflow.com/reference/v2)
+- [Perplexity API](https://docs.perplexity.ai/)
 
 ---
 
-## 🛠️ Quick Start
+## 🤝 Contributing
 
-### 1. Fix Direction Constraint (CRITICAL)
-
-**If you get constraint errors:**
-
-```bash
-cd ~/klarpakke
-git pull
-chmod +x scripts/quick-constraint-fix.sh
-./scripts/quick-constraint-fix.sh
-```
-
-**This opens an interactive menu** with 3 options:
-1. SQL Editor (opens in browser) - **RECOMMENDED**
-2. Python script (automatic)
-3. Show SQL only
-
-📚 **[Full Constraint Fix Guide →](./CONSTRAINT-FIX-README.md)**
+1. Fork repo
+2. Create feature branch: `git checkout -b feature/my-feature`
+3. Commit: `git commit -am 'Add feature'`
+4. Push: `git push origin feature/my-feature`
+5. Open PR
 
 ---
 
-### 2. Setup .env.local (One-Time)
+## 📄 License
 
-```bash
-cd ~/klarpakke
-
-# Create .env.local
-cat > .env.local << 'EOF'
-export SUPABASE_PROJECT_ID="swfyuwkptusceiouqlks"
-export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key-here"
-export SUPABASE_DB_URL="postgresql://postgres.swfyuwkptusceiouqlks:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
-EOF
-
-# Get keys from:
-# API Key: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/api
-# DB Password: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/database
-```
+MIT
 
 ---
 
-### 3. Run Auto-Fix
+## 🎯 Next Steps
 
-```bash
-chmod +x scripts/auto-fix-cli.sh
-./scripts/auto-fix-cli.sh
-```
-
----
-
-### 4. Watch Workflows
-
-```bash
-# Install GitHub CLI if needed
-brew install gh
-gh auth login
-
-# Watch live runs
-gh run watch
-
-# List recent runs
-gh run list -L 5
-```
+1. ✅ **Setup complete** - Database deployed
+2. 🔄 **Import Make.com scenarios** - `make make-import`
+3. 🌐 **Configure Webflow** - Create CMS collection
+4. 📊 **Backtest strategy** - Run historical simulations
+5. 💰 **Paper trade** - Test with $100 limit
+6. 🚀 **Go live** - Monitor daily
 
 ---
 
-## 📊 Monitoring
-
-### GitHub Actions Workflows
-
-| Workflow | Schedule | Purpose |
-|----------|----------|----------|
-| **[Trading Analysis](https://github.com/tombomann/klarpakke/actions/workflows/trading-with-auto-issue.yml)** | Every 5 min | Analyze signals + auto-issue on error |
-| **[Multi-Strategy Backtest](https://github.com/tombomann/klarpakke/actions/workflows/multi-strategy-backtest.yml)** | Weekly | Compare strategy performance |
-
-### Commands
-
-```bash
-# Watch live runs
-gh run watch
-
-# List recent runs
-gh run list -L 5
-
-# Manual trigger
-gh workflow run trading-with-auto-issue.yml
-gh workflow run multi-strategy-backtest.yml
-```
-
----
-
-## 🔧 Available Scripts
-
-### 🔧 Fix & Setup
-
-| Script | Purpose |
-|--------|----------|
-| `quick-constraint-fix.sh` | **Fix direction constraint (interactive)** |
-| `fix-constraint-python.py` | Fix constraint via Python |
-| `fix-direction-constraint.sql` | SQL to fix constraint |
-| `auto-fix-cli.sh` | **Auto-fix via REST API (no Docker)** |
-| `setup-github-secrets.sh` | Migrate .env → GitHub Secrets |
-
-### 📊 Analysis & Backtesting
-
-| Script | Purpose |
-|--------|----------|
-| `analyze_signals.py` | Core analysis logic |
-| `backtest-strategy.py` | Backtest single strategy |
-| `aggregate-backtest-results.py` | Compare strategy results |
-| `aggregate-sentiment.py` | Fetch Reddit/Twitter sentiment |
-
-### 🐛 Debug & Diagnostics
-
-| Script | Purpose |
-|--------|----------|
-| `debug-aisignal.py` | Show table contents |
-| `fix-schema-cache.py` | Fix PostgREST cache |
-| `adaptive-insert-signal.py` | Smart test signal insert |
-
----
-
-## ⚙️ System Architecture
-
-```
-┌─────────────────────────┐
-│  AI Signal Generation   │
-│  (Perplexity + Claude)  │
-└────────┬────────────────┘
-         │
-         │ webhook/API
-         ↓
-┌────────┴────────────────┐
-│   Supabase Database     │
-│   (aisignal table)      │
-│   status = 'PENDING'    │
-└────────┬────────────────┘
-         │
-         │ every 5 min
-         ↓
-┌────────┴────────────────┐
-│  GitHub Actions         │
-│  + Auto-Issue on Error  │ ← NEW!
-│  + Sentiment Boost      │ ← NEW!
-│  + Auto-Fix CLI         │ ← NEW!
-│  + Constraint Fix       │ ← NEW!
-│  - Fetch PENDING        │
-│  - Analyze confidence   │
-│  - Approve/Reject       │
-│  - Log reasoning        │
-└────────┬────────────────┘
-         │
-         │ update status
-         ↓
-┌────────┴────────────────┐
-│   Supabase Database     │
-│   status = 'APPROVED'   │
-│   approved_by = 'gh...' │
-│   reasoning = '...'     │
-└────────┬────────────────┘
-         │
-         │ webhook (optional)
-         ↓
-┌────────┴────────────────┐
-│   Make.com Automation   │
-│   Execute Trade         │
-└─────────────────────────┘
-```
-
----
-
-## ✅ Success Checklist
-
-Your system is working when:
-
-- [ ] Direction constraint fixed (run `quick-constraint-fix.sh`)
-- [ ] `.env.local` created with real credentials
-- [ ] `./scripts/auto-fix-cli.sh` completes successfully
-- [ ] Database has test signal inserted
-- [ ] `gh workflow run multi-strategy-backtest.yml` succeeds
-- [ ] Errors auto-create GitHub issues
-- [ ] Backtest results saved to artifacts
-
----
-
-## 🐛 Troubleshooting
-
-**Having issues?**
-
-1. **Constraint errors?** → [Constraint Fix Guide](./CONSTRAINT-FIX-README.md)
-2. **Database errors?** → [Auto-Fix Guide](./AUTO-FIX-README.md)
-3. **Other issues?** → [Troubleshooting](./TROUBLESHOOTING.md)
-
-**Quick fixes:**
-```bash
-# Fix constraint
-./scripts/quick-constraint-fix.sh
-
-# Fix everything else
-./scripts/auto-fix-cli.sh
-
-# Check API directly
-source .env.local
-curl -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-  "https://swfyuwkptusceiouqlks.supabase.co/rest/v1/aisignal?limit=5"
-```
-
----
-
-## 🛠️ Tech Stack
-
-- **Database:** Supabase (PostgreSQL)
-- **CI/CD:** GitHub Actions
-- **Language:** Python 3 + Bash
-- **API:** REST (PostgREST)
-- **Secrets:** GitHub Secrets (encrypted)
-- **Automation:** Make.com (optional)
-- **AI:** Perplexity + Claude
-- **Sentiment:** Reddit + Twitter APIs
-
----
-
-## 📚 Learn More
-
-- **[🔧 Constraint Fix Guide](./CONSTRAINT-FIX-README.md)** ← CONSTRAINT ERRORS? START HERE!
-- **[🆘 Auto-Fix CLI Guide](./AUTO-FIX-README.md)** ← DATABASE ISSUES? GO HERE!
-- **[🤖 Complete Automation Guide](./docs/AUTOMATION-GUIDE.md)**
-- [Quick Reference](./QUICKSTART.md)
-- [Troubleshooting](./TROUBLESHOOTING.md)
-- [GitHub Actions Docs](https://docs.github.com/en/actions)
-- [Supabase Docs](https://supabase.com/docs)
-
----
-
-## 🚀 Next Steps
-
-1. **Fix constraint** (if needed):
-   ```bash
-   ./scripts/quick-constraint-fix.sh
-   ```
-
-2. **Create .env.local** (see Quick Start above)
-
-3. **Run auto-fix:**
-   ```bash
-   cd ~/klarpakke && git pull && ./scripts/auto-fix-cli.sh
-   ```
-
-4. **Watch it work:**
-   ```bash
-   gh run watch
-   ```
-
-5. **Read the full guide:**
-   [docs/AUTOMATION-GUIDE.md](./docs/AUTOMATION-GUIDE.md)
-
----
-
-**Ready? Let's get automated!**
-
-```bash
-cd ~/klarpakke && git pull && ./scripts/quick-constraint-fix.sh
-```
-
-🚀 **Klarpakke** - Automated, transparent, risk-managed trading
+**Built with ❤️ for småsparere**

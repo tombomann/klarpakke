@@ -1,20 +1,74 @@
-name: Auto Deploy to Oracle VM
-on: [push]
+name: Deploy & Test Klarpakke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'DEPLOY-NOW.sql'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+
 jobs:
-  deploy:
+  verify-and-test:
+    name: Verify Tables & Run Smoke Tests
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v4
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.VM_IP }}
-        username: ${{ secrets.VM_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          cd /home/opc/klarpakke || git clone https://github.com/tombomann/klarpakke.git /home/opc/klarpakke
-          cd /home/opc/klarpakke
-          git pull origin main
-          chmod +x scripts/oracle-deploy.sh
-          ./scripts/oracle-deploy.sh
-          pm2 restart all || pm2 start ecosystem.config.js --env production
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup environment
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "SUPABASE_SECRET_KEY=${{ secrets.SUPABASE_SECRET_KEY }}" >> .env
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Verify tables exist
+        run: bash scripts/verify-tables.sh
+
+      - name: Run smoke tests
+        run: bash scripts/smoke-test.sh
+
+      - name: Test summary
+        if: success()
+        run: |
+          echo "✅ All tests passed!"
+          echo "Database: Ready"
+          echo "API: Accessible"
+          echo "Tables: positions, signals, daily_risk_meter, ai_calls"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Tests failed!"
+          echo "Check logs above for details."
+          exit 1
+
+  # Optional: Auto-deploy schema (commented out by default for safety)
+  # deploy-schema:
+  #   name: Deploy Database Schema
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy]')
+  #   
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Deploy to Supabase
+  #       run: |
+  #         # Requires Supabase CLI or API deployment
+  #         # TODO: Implement safe auto-deploy
+  #         echo "Manual deploy required - see DEPLOY-STEP-BY-STEP.md"

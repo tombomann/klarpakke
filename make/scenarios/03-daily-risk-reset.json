@@ -1,0 +1,145 @@
+{
+  "name": "Klarpakke: Daily Risk Meter Reset",
+  "flow": [
+    {
+      "id": 1,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/positions?status=eq.open",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_ANON_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_ANON_KEY}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "util:SetVariables",
+      "version": 1,
+      "mapper": {
+        "variables": [
+          {
+            "key": "total_risk",
+            "value": "{{sum(1.data; \"pnl_usd\")}}"
+          },
+          {
+            "key": "position_count",
+            "value": "{{length(1.data)}}"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/daily_risk_meter",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "name": "Prefer",
+            "value": "return=representation"
+          }
+        ],
+        "body": "{{toJSON({\n  \"date\": formatDate(now; \"YYYY-MM-DD\"),\n  \"total_risk_usd\": 2.total_risk,\n  \"max_risk_allowed\": 5000,\n  \"active_positions_count\": 2.position_count\n})}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/daily_risk_meter?date=lt.{{formatDate(addDays(now; -90); \"YYYY-MM-DD\")}}",
+        "method": "DELETE",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        },
+        "parameters": [
+          {
+            "name": "retention_days",
+            "type": "number",
+            "label": "Retention Days",
+            "required": false,
+            "default": 90
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "isLinked": false,
+      "scheduling": {
+        "type": "cron",
+        "cron": "0 0 * * *",
+        "timezone": "UTC"
+      }
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  }
+}

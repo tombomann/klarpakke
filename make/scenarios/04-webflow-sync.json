@@ -1,0 +1,99 @@
+{
+  "name": "Klarpakke: Webflow CMS Sync",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "version": 1,
+      "parameters": {
+        "hook": 123456,
+        "maxResults": 1
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        },
+        "restore": {
+          "parameters": {
+            "hook": {
+              "label": "Supabase Webhook - New Signal",
+              "data": {
+                "edittable": "true"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "mapper": {
+                "url": "https://api.webflow.com/v2/collections/{{env.WEBFLOW_COLLECTION_ID}}/items",
+                "method": "POST",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{env.WEBFLOW_API_TOKEN}}"
+                  },
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": "{{toJSON({\n  \"isArchived\": false,\n  \"isDraft\": false,\n  \"fieldData\": {\n    \"name\": 1.record.symbol + \" \" + 1.record.direction,\n    \"symbol\": 1.record.symbol,\n    \"direction\": 1.record.direction,\n    \"confidence\": 1.record.confidence,\n    \"reasoning\": 1.record.reason,\n    \"status\": 1.record.status,\n    \"created-date\": 1.record.created_at\n  }\n})}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 600,
+                  "y": 0
+                }
+              }
+            }
+          ],
+          "condition": "{{1.record.status = \"approved\"}}"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "isLinked": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  },
+  "notes": [
+    {
+      "id": 1,
+      "text": "Configure Supabase webhook:\n1. Go to Database > Webhooks\n2. Table: signals\n3. Events: INSERT, UPDATE\n4. Conditions: status = 'approved'\n5. Webhook URL: [Make.com webhook URL from module 1]"
+    }
+  ]
+}

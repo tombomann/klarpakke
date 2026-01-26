@@ -1,0 +1,148 @@
+{
+  "name": "Klarpakke: Position Tracker (15min)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/positions?status=eq.open",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_ANON_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_ANON_KEY}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicIterator",
+      "version": 1,
+      "mapper": {
+        "array": "{{1.data}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "mapper": {
+        "url": "https://api.binance.com/api/v3/ticker/price?symbol={{2.symbol}}USDT",
+        "method": "GET"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "parameters": [
+          {
+            "name": "symbol",
+            "type": "text",
+            "label": "Symbol",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "module": "util:SetVariables",
+      "version": 1,
+      "mapper": {
+        "variables": [
+          {
+            "key": "current_price",
+            "value": "{{3.data.price}}"
+          },
+          {
+            "key": "pnl_usd",
+            "value": "{{(3.data.price - 2.entry_price) * 2.quantity}}"
+          },
+          {
+            "key": "pnl_percent",
+            "value": "{{((3.data.price - 2.entry_price) / 2.entry_price) * 100}}"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/positions?id=eq.{{2.id}}",
+        "method": "PATCH",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{{toJSON({\n  \"current_price\": 4.current_price,\n  \"pnl_usd\": 4.pnl_usd,\n  \"pnl_percent\": 4.pnl_percent\n})}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "isLinked": false,
+      "scheduling": {
+        "type": "interval",
+        "interval": 15,
+        "unit": "minutes"
+      }
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  }
+}

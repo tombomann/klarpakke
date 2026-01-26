@@ -1,0 +1,223 @@
+{
+  "name": "Klarpakke: Trading Signal Generator",
+  "flow": [
+    {
+      "id": 1,
+      "module": "perplexity:ApiCall",
+      "version": 1,
+      "parameters": {
+        "model": "sonar-pro",
+        "temperature": 0.3
+      },
+      "mapper": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a crypto trading analyst. Analyze BTC/ETH and provide ONE actionable signal. Format: {symbol, direction (BUY/SELL), confidence (0-1), reasoning}"
+          },
+          {
+            "role": "user",
+            "content": "Analyze current crypto market. Provide trading signal for highest conviction play. Consider: price action, volume, sentiment, macro."
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "json:ParseJSON",
+      "version": 1,
+      "mapper": {
+        "json": "{{1.choices[0].message.content}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {
+        "handleErrors": true,
+        "useQuerystring": false
+      },
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/signals",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "name": "Prefer",
+            "value": "return=representation"
+          }
+        ],
+        "qs": [],
+        "bodyType": "raw",
+        "body": "{{toJSON({\n  \"symbol\": 2.symbol,\n  \"direction\": 2.direction,\n  \"confidence\": 2.confidence,\n  \"reason\": 2.reasoning,\n  \"ai_model\": \"perplexity-sonar-pro\",\n  \"status\": \"pending\"\n})}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0
+        },
+        "restore": {
+          "expect": {
+            "bodyType": {
+              "mode": "chose",
+              "label": "Raw"
+            },
+            "method": {
+              "mode": "chose",
+              "label": "POST"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "version": 3,
+      "parameters": {},
+      "mapper": {
+        "url": "{{env.SUPABASE_URL}}/rest/v1/daily_risk_meter?date=eq.{{formatDate(now; \"YYYY-MM-DD\")}}",
+        "method": "GET",
+        "headers": [
+          {
+            "name": "apikey",
+            "value": "{{env.SUPABASE_ANON_KEY}}"
+          },
+          {
+            "name": "Authorization",
+            "value": "Bearer {{env.SUPABASE_ANON_KEY}}"
+          }
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "mapper": null,
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 6,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "mapper": {
+                "url": "{{env.SUPABASE_URL}}/rest/v1/signals?id=eq.{{3.data[0].id}}",
+                "method": "PATCH",
+                "headers": [
+                  {
+                    "name": "apikey",
+                    "value": "{{env.SUPABASE_SECRET_KEY}}"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+                  },
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": "{{toJSON({\"status\": \"approved\"})}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": -100
+                }
+              }
+            }
+          ],
+          "condition": "{{4.data[0].total_risk_usd < 4000}}"
+        },
+        {
+          "flow": [
+            {
+              "id": 7,
+              "module": "http:ActionSendData",
+              "version": 3,
+              "mapper": {
+                "url": "{{env.SUPABASE_URL}}/rest/v1/signals?id=eq.{{3.data[0].id}}",
+                "method": "PATCH",
+                "headers": [
+                  {
+                    "name": "apikey",
+                    "value": "{{env.SUPABASE_SECRET_KEY}}"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{env.SUPABASE_SECRET_KEY}}"
+                  },
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": "{{toJSON({\"status\": \"rejected\", \"reason\": \"Risk limit exceeded\"})}}"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 100
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": false,
+      "sequential": false,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "eu1.make.com"
+  }
+}
