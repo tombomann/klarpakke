@@ -79,22 +79,26 @@ ci: test ## Run CI pipeline (verify + smoke)
 make-setup: ## Generate Make.com environment variables file
 	@bash scripts/setup-make-env.sh
 
+make-check: ## Verify Make.com environment is ready
+	@bash scripts/check-make-ready.sh
+
+make-ready: make-setup make-check ## Setup and verify Make.com environment
+
 make-import: ## Show instructions for importing Make.com scenarios
 	@echo "${GREEN}=== Make.com Import Instructions ===${NC}"
-	@echo "${YELLOW}1. Go to: https://www.make.com/en/login${NC}"
-	@echo "${YELLOW}2. Click 'Create a new scenario'${NC}"
-	@echo "${YELLOW}3. Click '...' → 'Import Blueprint'${NC}"
-	@echo "${YELLOW}4. Upload JSON files from: make/scenarios/${NC}"
+	@echo "${YELLOW}1. Verify readiness: make make-check${NC}"
+	@echo "${YELLOW}2. Go to: https://www.make.com/en/scenarios${NC}"
+	@echo "${YELLOW}3. Click 'Create a new scenario'${NC}"
+	@echo "${YELLOW}4. Click '...' → 'Import Blueprint'${NC}"
+	@echo "${YELLOW}5. Upload: make/scenarios/01-trading-signal-generator.json${NC}"
 	@echo ""
 	@echo "${GREEN}Available scenarios:${NC}"
 	@ls -1 make/scenarios/*.json 2>/dev/null | sed 's|make/scenarios/||' | sed 's|^|  - |' || echo "  No scenarios found"
 	@echo ""
-	@echo "${YELLOW}5. Setup environment variables:${NC}"
-	@echo "   Run: make make-setup"
-	@echo "   Then copy values from make/.env.make to Make.com"
+	@echo "${YELLOW}6. Configure environment variables in Make.com:${NC}"
+	@echo "   Copy from: make/.env.make"
 	@echo ""
-	@echo "${RED}IMPORTANT: Get Perplexity API key first!${NC}"
-	@echo "https://www.perplexity.ai/settings/api"
+	@echo "${RED}Run 'make make-check' first to verify setup!${NC}"
 
 make-config: make-setup ## Alias for make-setup
 
