@@ -70,6 +70,12 @@ gh-secrets: ## Setup GitHub secrets for Actions
 	@gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY"
 	@echo "✅ GitHub secrets set"
 
+gh-sync-secrets: ## Sync GitHub secrets to Supabase Edge (via Actions)
+	@echo "🔄 Triggering Supabase secrets sync workflow..."
+	@gh workflow run supabase-sync-secrets.yml
+	@echo "✅ Workflow triggered! Monitor at:"
+	@echo "  https://github.com/tombomann/klarpakke/actions/workflows/supabase-sync-secrets.yml"
+
 gh-test: ## Trigger GitHub Actions manually
 	@gh workflow run scheduled-tasks.yml
 	@echo "✅ Workflow triggered! Check:"
