@@ -33,20 +33,47 @@ edge-deploy: ## Deploy Edge Functions
 edge-secrets: ## Setup secrets (PERPLEXITY_API_KEY)
 	@bash scripts/setup-secrets.sh
 
-edge-test: ## Test Edge Functions locally
-	@supabase functions invoke generate-trading-signal --project-ref swfyuwkptusceiouqlks
+edge-test: ## Test Edge Functions
+	@echo "🧪 Testing Edge Functions..."
+	@echo ""
+	@echo "1. Testing generate-trading-signal..."
+	@curl -X POST "$$SUPABASE_URL/functions/v1/generate-trading-signal" \
+	  -H "Authorization: Bearer $$SUPABASE_ANON_KEY" \
+	  -H "Content-Type: application/json" || echo "Failed - check .env"
+	@echo ""
+	@echo "2. Testing update-positions..."
+	@curl -X POST "$$SUPABASE_URL/functions/v1/update-positions" \
+	  -H "Authorization: Bearer $$SUPABASE_ANON_KEY" \
+	  -H "Content-Type: application/json" || echo "Failed - check .env"
 
 edge-logs: ## View Edge Function logs
-	@supabase functions logs generate-trading-signal --project-ref swfyuwkptusceiouqlks
+	@echo "Opening Supabase Dashboard..."
+	@open "https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/functions"
 
-edge-full: edge-deploy edge-secrets edge-test ## Deploy + setup secrets + test
+edge-full: edge-deploy edge-secrets ## Deploy + setup secrets
+	@echo ""
+	@echo "🎉 Edge Functions deployed!"
+	@echo ""
+	@echo "View functions:"
+	@echo "  https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/functions"
+	@echo ""
+	@echo "Test manually:"
+	@echo "  make edge-test-live"
+
+edge-test-live: ## Test Edge Functions (requires .env)
+	@bash scripts/test-edge-functions.sh
 
 # GitHub Actions
 gh-secrets: ## Setup GitHub secrets for Actions
-	@echo "Setting GitHub secrets..."
-	@gh secret set SUPABASE_URL < .env
-	@gh secret set SUPABASE_ANON_KEY < .env
+	@echo "🔐 Setting GitHub secrets..."
+	@gh secret set SUPABASE_URL --body "$$SUPABASE_URL"
+	@gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY"
 	@echo "✅ GitHub secrets set"
+
+gh-test: ## Trigger GitHub Actions manually
+	@gh workflow run scheduled-tasks.yml
+	@echo "✅ Workflow triggered! Check:"
+	@echo "  https://github.com/tombomann/klarpakke/actions"
 
 # Testing
 test: ## Run all tests
@@ -70,5 +97,10 @@ auto: edge-full gh-secrets ## Full automation setup
 	@echo "  ✅ Edge Functions (serverless)"
 	@echo "  ✅ GitHub Actions (scheduled)"
 	@echo ""
-	@echo "Manual trigger:"
-	@echo "  gh workflow run scheduled-tasks.yml"
+	@echo "Next steps:"
+	@echo "  1. Test functions: make edge-test-live"
+	@echo "  2. View logs: make edge-logs"
+	@echo "  3. Trigger workflow: make gh-test"
+	@echo ""
+	@echo "Dashboard:"
+	@echo "  https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/functions"
