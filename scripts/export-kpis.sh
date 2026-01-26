@@ -6,11 +6,26 @@ set -euo pipefail
 
 DAYS="${1:-30}"
 OUTPUT="${2:-reports/kpis-$(date +%Y-%m-%d).json}"
-SUPABASE_URL="${SUPABASE_URL}"
-SUPABASE_KEY="${SUPABASE_ANON_KEY}"
 
-if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
-    echo "❌ Missing env vars: SUPABASE_URL, SUPABASE_ANON_KEY"
+# Check for required env vars
+if [ -z "${SUPABASE_URL:-}" ]; then
+    echo "❌ Missing SUPABASE_URL environment variable"
+    echo ""
+    echo "Set it with:"
+    echo "  export SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co"
+    echo ""
+    echo "Or create .env file (see .env.example)"
+    exit 1
+fi
+
+if [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+    echo "❌ Missing SUPABASE_ANON_KEY environment variable"
+    echo ""
+    echo "Find your anon key at:"
+    echo "  https://supabase.com/dashboard/project/_/settings/api"
+    echo ""
+    echo "Set it with:"
+    echo "  export SUPABASE_ANON_KEY=eyJ..."
     exit 1
 fi
 
@@ -30,13 +45,22 @@ echo "📅 Date range: $START_DATE to $END_DATE"
 # Fetch positions
 echo "🔄 Fetching positions..."
 POSITIONS=$(curl -s \
-  -H "apikey: $SUPABASE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   "$SUPABASE_URL/rest/v1/positions?created_at=gte.$START_DATE&created_at=lte.$END_DATE&select=*")
 
 if [ -z "$POSITIONS" ] || [ "$POSITIONS" = "[]" ]; then
     echo "⚠️  No positions found in date range."
-    echo '{"error": "No data"}' > "$OUTPUT"
+    cat > "$OUTPUT" << EOF
+{
+  "error": "No data available",
+  "period": {
+    "start_date": "$START_DATE",
+    "end_date": "$END_DATE"
+  }
+}
+EOF
+    cat "$OUTPUT" | jq .
     exit 0
 fi
 
@@ -46,7 +70,13 @@ echo "🧮 Calculating KPIs..."
 TOTAL_TRADES=$(echo "$POSITIONS" | jq 'length')
 WINNING_TRADES=$(echo "$POSITIONS" | jq '[.[] | select(.pnl_usd > 0)] | length')
 LOSING_TRADES=$(echo "$POSITIONS" | jq '[.[] | select(.pnl_usd < 0)] | length')
-WINRATE=$(echo "scale=2; $WINNING_TRADES * 100 / $TOTAL_TRADES" | bc 2>/dev/null || echo "0")
+
+# Calculate winrate with bc or awk
+if command -v bc &> /dev/null; then
+    WINRATE=$(echo "scale=2; $WINNING_TRADES * 100 / $TOTAL_TRADES" | bc 2>/dev/null || echo "0")
+else
+    WINRATE=$(awk "BEGIN {printf \"%.2f\", $WINNING_TRADES * 100 / $TOTAL_TRADES}" 2>/dev/null || echo "0")
+fi
 
 AVG_PNL=$(echo "$POSITIONS" | jq '[.[] | .pnl_usd // 0] | add / length')
 TOTAL_PNL=$(echo "$POSITIONS" | jq '[.[] | .pnl_usd // 0] | add')
@@ -56,23 +86,23 @@ MAX_LOSS=$(echo "$POSITIONS" | jq '[.[] | .pnl_usd // 0] | min')
 # Fetch risk meter
 echo "🔄 Fetching risk meter..."
 RISK=$(curl -s \
-  -H "apikey: $SUPABASE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   "$SUPABASE_URL/rest/v1/daily_risk_meter?date=gte.$START_DATE&date=lte.$END_DATE&select=*")
 
 MAX_DRAWDOWN=$(echo "$RISK" | jq '[.[] | .total_risk_usd // 0] | max')
-AVG_RISK=$(echo "$RISK" | jq '[.[] | .risk_percent // 0] | add / length')
+AVG_RISK=$(echo "$RISK" | jq 'if length > 0 then ([.[] | .risk_percent // 0] | add / length) else 0 end')
 
 # Fetch AI calls
 echo "🔄 Fetching AI call stats..."
 AI_CALLS=$(curl -s \
-  -H "apikey: $SUPABASE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   "$SUPABASE_URL/rest/v1/ai_calls?created_at=gte.$START_DATE&created_at=lte.$END_DATE&select=*")
 
 TOTAL_AI_CALLS=$(echo "$AI_CALLS" | jq 'length')
 TOTAL_AI_COST=$(echo "$AI_CALLS" | jq '[.[] | .cost_usd // 0] | add')
-AVG_LATENCY=$(echo "$AI_CALLS" | jq '[.[] | .latency_ms // 0] | add / length')
+AVG_LATENCY=$(echo "$AI_CALLS" | jq 'if length > 0 then ([.[] | .latency_ms // 0] | add / length) else 0 end')
 
 # Generate JSON report
 cat > "$OUTPUT" << EOF
@@ -108,8 +138,5 @@ EOF
 echo ""
 echo "✅ KPIs exported to: $OUTPUT"
 echo ""
-echo "📈 Summary:"
+echo "📊 Summary:"
 cat "$OUTPUT" | jq .
-echo ""
-echo "📊 View full report:"
-echo "   cat $OUTPUT | jq"

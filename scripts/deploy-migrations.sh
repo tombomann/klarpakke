@@ -4,17 +4,16 @@
 
 set -euo pipefail
 
-PROJECT_REF="${SUPABASE_PROJECT_REF:-swfyuwkptusceiouqlks}"
 MIGRATIONS_DIR="supabase/migrations"
 
 echo "🚀 Deploying Supabase migrations..."
-echo "Project: $PROJECT_REF"
 echo ""
 
 # Check if supabase CLI is installed
 if ! command -v supabase &> /dev/null; then
     echo "❌ Supabase CLI not found."
-    echo "Install: https://supabase.com/docs/guides/cli"
+    echo "Install: brew install supabase/tap/supabase"
+    echo "Or: npm i supabase --save-dev"
     exit 1
 fi
 
@@ -32,11 +31,27 @@ ls -1 "$MIGRATIONS_DIR"/*.sql 2>/dev/null || {
 }
 echo ""
 
+# Check if linked to a project
+if ! supabase status &>/dev/null; then
+    echo "⚠️  No linked Supabase project found."
+    echo ""
+    echo "Link to your project first:"
+    echo "  supabase link --project-ref YOUR_PROJECT_REF"
+    echo ""
+    echo "Find your project ref at:"
+    echo "  https://supabase.com/dashboard/project/_/settings/general"
+    exit 1
+fi
+
+# Show current project
+echo "📍 Linked project:"
+supabase status | grep "Project ID" || echo "  (checking...)"
+echo ""
+
 # Dry-run first
 echo "🔍 Dry-run: checking SQL syntax..."
 for migration in "$MIGRATIONS_DIR"/*.sql; do
     echo "  Checking: $(basename "$migration")"
-    # Basic SQL syntax check (can be improved with pgsql parser)
     if grep -qE "^(CREATE|ALTER|DROP|INSERT)" "$migration"; then
         echo "    ✅ Valid SQL detected"
     else
@@ -53,11 +68,15 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# Deploy using Supabase CLI
+# Deploy using Supabase CLI (v2 syntax)
 echo "📤 Pushing migrations to Supabase..."
-supabase db push --project-ref "$PROJECT_REF" || {
+supabase db push || {
     echo "❌ Migration failed!"
-    echo "Check Supabase logs: https://supabase.com/dashboard/project/$PROJECT_REF/logs"
+    echo ""
+    echo "Troubleshooting:"
+    echo "  1. Check you're linked: supabase link --project-ref YOUR_REF"
+    echo "  2. Check migrations syntax"
+    echo "  3. View logs: supabase db push --debug"
     exit 1
 }
 
@@ -65,7 +84,7 @@ echo ""
 echo "✅ Migrations deployed successfully!"
 echo ""
 echo "📊 Verify in Supabase Studio:"
-echo "   https://supabase.com/dashboard/project/$PROJECT_REF/editor"
+echo "   https://supabase.com/dashboard/project/_/editor"
 echo ""
 echo "🧪 Test with:"
 echo "   bash scripts/smoke-test.sh"

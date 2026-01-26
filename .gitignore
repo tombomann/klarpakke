@@ -1,22 +1,43 @@
-# Environment & Secrets
-.env.migration
-.env*
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
 *.log
-migration-*.log
+
+# Next.js
+.next/
+out/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Supabase
+.branches/
+.temp/
+supabase/.branches
+supabase/.temp
+
+# Reports
+reports/*.json
+!reports/.gitkeep
 
 # OS
 .DS_Store
+*.swp
+*.swo
+*~
 
 # IDE
 .vscode/
 .idea/
+*.sublime-*
 
-# Secrets (never commit)
-.env
-.env.*
-!.env.example
-
-# Dependencies (never commit)
-node_modules/
-.vercel
-.env*.local
+# Misc
+*.tgz
+*.zip
