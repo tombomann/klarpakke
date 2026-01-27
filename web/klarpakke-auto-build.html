@@ -1,0 +1,197 @@
+<script>
+/**
+ * Klarpakke Auto-Building Dashboard
+ * Builds entire UI automatically - NO Webflow structure needed!
+ */
+
+console.log('[Klarpakke] Auto-builder starting...');
+
+const CONFIG = {
+  url: 'https://swfyuwkptusceiouqlks.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3Znl1d2twdHVzY2Vpb3VxbGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxODY4MDEsImV4cCI6MjA4NDc2MjgwMX0.ZSpSU8pkIDxY0DrBKRitID2Sx6OUUGy1D4bFMVSwWlk'
+};
+
+// Build entire page structure
+function buildPage() {
+  // Clear body
+  document.body.innerHTML = '';
+  document.body.style.cssText = 'margin:0;padding:0;font-family:Onest,-apple-system,sans-serif;background:#f8f9fa;';
+  
+  // Create container
+  const container = document.createElement('div');
+  container.style.cssText = 'max-width:1200px;margin:0 auto;padding:40px 20px;';
+  
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = 'text-align:center;margin-bottom:40px;';
+  header.innerHTML = `
+    <h1 style="font-size:48px;font-weight:700;margin:0 0 16px 0;color:#1a1a1a;font-family:Instrument Sans,sans-serif;">
+      📊 Handelssignaler
+    </h1>
+    <p style="font-size:18px;color:#666;margin:0;">
+      Live kryptosignaler fra vårt AI-system
+    </p>
+  `;
+  
+  // Signals container
+  const signalsContainer = document.createElement('div');
+  signalsContainer.id = 'signals-container';
+  signalsContainer.style.cssText = 'min-height:400px;';
+  
+  container.appendChild(header);
+  container.appendChild(signalsContainer);
+  document.body.appendChild(container);
+  
+  console.log('[Klarpakke] Page structure built');
+}
+
+// Load and render signals
+async function loadSignals() {
+  const container = document.getElementById('signals-container');
+  container.innerHTML = '<div style="text-align:center;padding:60px;"><p style="font-size:20px;color:#666;">⏳ Laster signaler...</p></div>';
+  
+  try {
+    const response = await fetch(
+      CONFIG.url + '/rest/v1/signals?status=eq.pending&order=created_at.desc&limit=15',
+      { headers: { apikey: CONFIG.key, Authorization: 'Bearer ' + CONFIG.key } }
+    );
+    
+    if (!response.ok) throw new Error('Fetch failed');
+    
+    const signals = await response.json();
+    console.log('[Klarpakke] Loaded:', signals.length, 'signals');
+    
+    if (signals.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:60px;background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <p style="font-size:24px;color:#666;margin:0;">📊 Ingen signaler for øyeblikket</p>
+          <p style="font-size:16px;color:#999;margin:16px 0 0 0;">Nye signaler vil dukke opp automatisk</p>
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = signals.map(s => {
+      const dc = s.direction === 'BUY' ? '#28a745' : '#dc3545';
+      const emoji = s.direction === 'BUY' ? '📈' : '📉';
+      const cp = Math.round(s.confidence * 100);
+      const cc = cp >= 80 ? '#28a745' : cp >= 60 ? '#ffc107' : '#dc3545';
+      const date = new Date(s.created_at).toLocaleString('nb-NO', {
+        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+      });
+      
+      return `
+        <div style="background:white;border:2px solid #e0e0e0;border-radius:16px;padding:28px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all 0.3s;" onmouseenter="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';" onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h2 style="margin:0;font-size:32px;font-weight:700;font-family:Instrument Sans,sans-serif;">
+              ${s.symbol} <span style="color:${dc};font-size:28px;">${emoji} ${s.direction}</span>
+            </h2>
+            <div style="background:${cc};color:white;padding:10px 20px;border-radius:12px;font-weight:600;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+              ${cp}%
+            </div>
+          </div>
+          <div style="margin-bottom:20px;">
+            <p style="color:#666;font-size:16px;line-height:1.6;margin:0 0 16px 0;padding:16px;background:#f8f9fa;border-radius:8px;border-left:4px solid ${dc};">
+              <strong style="color:#333;">Begrunnelse:</strong><br>${s.reasoning || 'Ingen begrunnelse'}
+            </p>
+            <div style="font-size:14px;color:#999;display:flex;gap:20px;">
+              <span><strong>Status:</strong> ${s.status}</span>
+              <span><strong>Opprettet:</strong> ${date}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button onclick="approve('${s.id}')" id="a${s.id}" style="flex:1;padding:16px;background:#28a745;color:white;border:none;border-radius:10px;font-size:17px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 6px rgba(40,167,69,0.3);" onmouseover="this.style.background='#218838';this.style.transform='scale(1.02)';" onmouseout="this.style.background='#28a745';this.style.transform='scale(1)';">✓ Godkjenn</button>
+            <button onclick="reject('${s.id}')" id="r${s.id}" style="flex:1;padding:16px;background:#dc3545;color:white;border:none;border-radius:10px;font-size:17px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 6px rgba(220,53,69,0.3);" onmouseover="this.style.background='#c82333';this.style.transform='scale(1.02)';" onmouseout="this.style.background='#dc3545';this.style.transform='scale(1)';">✗ Avvis</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+  } catch (e) {
+    console.error('[Klarpakke] Error:', e);
+    container.innerHTML = `
+      <div style="text-align:center;padding:60px;background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <p style="font-size:24px;color:#dc3545;margin:0;">❌ Kunne ikke laste signaler</p>
+        <button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#007bff;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;font-weight:600;">🔄 Last på nytt</button>
+      </div>
+    `;
+  }
+}
+
+// Approve signal
+window.approve = async function(id) {
+  if (!confirm('Godkjenn dette signalet?')) return;
+  const btn = document.getElementById('a' + id);
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Godkjenner...';
+  btn.style.opacity = '0.6';
+  
+  try {
+    const r = await fetch(CONFIG.url + '/functions/v1/approve-signal', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + CONFIG.key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signal_id: id, action: 'APPROVE' })
+    });
+    
+    if (!r.ok) throw new Error('Failed');
+    
+    btn.innerHTML = '✅ Godkjent!';
+    btn.style.background = '#28a745';
+    setTimeout(loadSignals, 1500);
+    
+  } catch (e) {
+    alert('❌ Feil ved godkjenning');
+    btn.disabled = false;
+    btn.innerHTML = '✓ Godkjenn';
+    btn.style.opacity = '1';
+  }
+};
+
+// Reject signal
+window.reject = async function(id) {
+  if (!confirm('Avvis dette signalet?')) return;
+  const btn = document.getElementById('r' + id);
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Avviser...';
+  btn.style.opacity = '0.6';
+  
+  try {
+    const r = await fetch(CONFIG.url + '/functions/v1/approve-signal', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + CONFIG.key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signal_id: id, action: 'REJECT' })
+    });
+    
+    if (!r.ok) throw new Error('Failed');
+    
+    btn.innerHTML = '✅ Avvist!';
+    btn.style.background = '#6c757d';
+    setTimeout(loadSignals, 1500);
+    
+  } catch (e) {
+    alert('❌ Feil ved avvisning');
+    btn.disabled = false;
+    btn.innerHTML = '✗ Avvis';
+    btn.style.opacity = '1';
+  }
+};
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+  console.log('[Klarpakke] Auto-refreshing...');
+  loadSignals();
+}, 30000);
+
+// Initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    buildPage();
+    loadSignals();
+  });
+} else {
+  buildPage();
+  loadSignals();
+}
+
+console.log('[Klarpakke] Auto-builder ready! 🚀');
+</script>
