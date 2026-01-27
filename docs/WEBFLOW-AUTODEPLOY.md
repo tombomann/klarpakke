@@ -18,6 +18,12 @@ I dette oppsettet inneholder Webflow footer kun en URL til en public config-endp
 - `assetBase`
 - `debug`
 
+## Preflight (automatisk)
+
+Når `scripts/webflow-set-footer-loader.sh` kjører, gjør den en preflight før publisering:
+- Verifiserer at `KLARPAKKE_PUBLIC_CONFIG_URL` svarer og returnerer forventede felter.
+- Verifiserer at `assetBase/klarpakke-site.js` er tilgjengelig (forhindrer at vi publiserer en loader som peker på døde filer).
+
 ## Hvordan det funker
 
 1. `supabase/functions/public-config` deployes som Edge Function.
