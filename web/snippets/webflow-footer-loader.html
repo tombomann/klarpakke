@@ -1,5 +1,5 @@
 <!-- Klarpakke Webflow loader (paste in Project Settings → Custom Code → Footer Code) -->
-<!-- Goal: avoid pasting large JS blobs; keep a tiny bootstrap that always loads latest klarpakke-site.js from repo/CDN. -->
+<!-- Goal: avoid pasting large JS blobs; keep a tiny bootstrap that always loads latest scripts from repo/CDN. -->
 
 <script>
   // 1) Runtime config (anon key is publishable; NEVER put service_role key in client code)
@@ -10,12 +10,26 @@
     debug: false,
   };
 
-  // 2) Load the site engine (auto-updates when main changes)
+  // 2) Asset base (used for auto-loading optional scripts)
+  window.KLARPAKKE_ASSET_BASE = 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@main/web';
+
+  // 3) Load the site engine + auto-load calculator on /kalkulator
   (function () {
-    var src = 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@main/web/klarpakke-site.js';
-    var s = document.createElement('script');
-    s.src = src + '?v=' + Date.now(); // cache-bust per page load
-    s.defer = true;
-    document.head.appendChild(s);
+    var base = window.KLARPAKKE_ASSET_BASE;
+    // Daily cache-bust (keeps CDN caching effective but ensures updates roll out quickly)
+    var v = new Date().toISOString().slice(0, 10);
+
+    function load(src) {
+      var s = document.createElement('script');
+      s.src = src + '?v=' + encodeURIComponent(v);
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+
+    load(base + '/klarpakke-site.js');
+
+    if (window.location && window.location.pathname && window.location.pathname.indexOf('/kalkulator') !== -1) {
+      load(base + '/calculator.js');
+    }
   })();
 </script>
