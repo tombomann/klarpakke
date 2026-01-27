@@ -1,223 +1,295 @@
-# 🚀 Klarpakke Trading Analysis - Quick Start
+# 🚀 Klarpakke Quickstart
 
-## ONE-COMMAND SETUP ⚡
+**Deploy entire stack in 10 minutes**
+
+---
+
+## 🎯 One-Command Deployment
 
 ```bash
-cd ~/klarpakke && git pull && chmod +x scripts/ultimate-fix.sh && bash scripts/ultimate-fix.sh
+cd ~/klarpakke && \
+git pull origin main && \
+chmod +x scripts/complete-deployment.sh && \
+bash scripts/complete-deployment.sh
 ```
 
-Dette scriptet gjør **ALT** automatisk:
-1. ✅ Åpner Supabase dashboard
-2. ✅ Ber deg lime inn 2 keys (eneste manuelle steg)
-3. ✅ Validerer keys
-4. ✅ Tester lokalt
-5. ✅ Synkroniserer til GitHub
-6. ✅ Trigger workflow
-7. ✅ Åpner monitoring
+**What happens:**
+1. Fixes Webflow field mapping (`reasoning` → `reason`)
+2. Generates 3-5 demo signals in Supabase
+3. Tests single signal sync to Webflow
+4. Syncs all signals to Webflow CMS
+5. Deploys Webflow UI (interactive guide)
+6. Verifies deployment
+
+**Time:** ~10 minutes (5 min automated + 5 min Webflow UI paste)
 
 ---
 
-## 📋 Hva du trenger
+## 📊 What Gets Deployed
 
-- macOS (for `open` kommando)
-- Homebrew
-- Git
-- Python 3
-- Tilgang til Supabase dashboard
-- GitHub CLI (installeres automatisk hvis mangler)
+### Backend (Supabase)
+- ✅ PostgreSQL database (4 tables)
+- ✅ Edge Functions (6 functions)
+- ✅ REST API endpoints
+- ✅ RLS security policies
+
+### Automation (GitHub Actions)
+- ✅ Webflow sync (every 5 minutes)
+- ✅ Deploy & test (on push to main)
+
+### Frontend (Webflow)
+- ✅ CMS Collection (signals)
+- ✅ UI JavaScript (2.5 KB)
+- ✅ Password protection
+- ✅ Approve/reject buttons
 
 ---
 
-## 🎯 Steg-for-steg (hvis ultimate-fix.sh feiler)
+## 🛠️ Prerequisites
 
-### 1. Setup lokalt miljø
+### 1. Supabase Project
+- ✅ Project created: `swfyuwkptusceiouqlks`
+- ✅ API keys in `.env`
+- ✅ Tables deployed (via DEPLOY-NOW.sql)
 
+### 2. Webflow Site
+- ✅ Site created: `klarpakke-c65071.webflow.io`
+- ✅ CMS Collection created: "Signals"
+- ✅ API token generated
+
+### 3. GitHub Repository
+- ✅ Repo cloned locally
+- ✅ Secrets configured (via one-click-install.sh)
+
+**Already done?** Run quickstart above! ⬆️
+
+**Starting fresh?** Run this first:
 ```bash
 cd ~/klarpakke
-git pull origin main
-```
-
-### 2. Hent API keys manuelt
-
-```bash
-# Åpne dashboard
-open https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/settings/api
-
-# I browseren:
-# - Kopier "anon public" key
-# - Klikk "Reveal" ved "service_role" og kopier
-```
-
-### 3. Oppdater .env.migration
-
-```bash
-cat > .env.migration << 'EOF'
-SUPABASE_PROJECT_ID=swfyuwkptusceiouqlks
-SUPABASE_ANON_KEY=<paste_anon_key>
-SUPABASE_SERVICE_ROLE_KEY=<paste_service_role_key>
-SUPABASE_DB_URL="postgresql://postgres.swfyuwkptusceiouqlks:password@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
-MAKE_TEAM_ID=219598
-MAKE_API_TOKEN=your_make_token_here
-EOF
-```
-
-### 4. Test lokalt
-
-```bash
-bash scripts/debug-keys.sh
-```
-
-### 5. Sync til GitHub
-
-```bash
-bash scripts/sync-secrets.sh push
-```
-
-### 6. Trigger workflow
-
-```bash
-gh workflow run trading-analysis.yml
-gh run watch
+bash scripts/one-click-install.sh
 ```
 
 ---
 
-## 🔧 Available Scripts
+## 💡 How It Works
 
-| Script | Beskrivelse |
-|--------|-------------|
-| `ultimate-fix.sh` | **ANBEFALT** - Full automated setup |
-| `complete-setup.sh` | End-to-end med Supabase CLI (kan gi ugyldige keys) |
-| `auto-fix-keys.sh` | Hent keys via Supabase CLI |
-| `sync-secrets.sh` | Sync .env ↔️ GitHub Secrets |
-| `debug-keys.sh` | Test og debug API keys |
-| `test-analysis-local.sh` | Test Python script lokalt |
+### Signal Flow
+```
+1. Generate Signal (Supabase Edge Function)
+   ↓
+2. Store in Database (signals table)
+   ↓
+3. Sync to Webflow CMS (GitHub Actions every 5 min)
+   ↓
+4. Display in UI (Webflow Custom Code)
+   ↓
+5. User Approves/Rejects (JavaScript → Edge Function)
+   ↓
+6. Update Status (Supabase + Webflow)
+```
+
+### Field Mapping
+```
+Supabase Table       →  Webflow CMS
+-------------------     -------------------
+symbol (text)        →  symbol (PlainText)
+direction (text)     →  direction (PlainText)
+confidence (numeric) →  confidence (Number)
+reasoning (text)     →  reason (PlainText)
+status (text)        →  status (PlainText)
++ auto-generated     →  name (PlainText)
++ auto-generated     →  slug (PlainText)
+```
+
+**Key Fix:** `reasoning` → `reason` (field name mismatch)
 
 ---
 
-## 📊 Monitoring
+## 🧪 Testing
 
-### GitHub Actions
+### After Deployment
+
+#### 1. Test Webflow CMS Sync
 ```bash
-# Watch live
-gh run watch
+# Generate demo signals
+make paper-seed
 
-# List recent runs
-gh run list --workflow="trading-analysis.yml" -L 10
+# Wait 5 minutes for auto-sync
+# OR run manual sync:
+bash scripts/webflow-sync.sh
 
-# View logs
-gh run view --log
-
-# Or in browser
-open https://github.com/tombomann/klarpakke/actions
+# Check Webflow CMS:
+open https://webflow.com/dashboard/sites/69743573d50cc16bbbe54344/collections/6978258967f5139c7426902d
 ```
 
-### Supabase
+#### 2. Test Webflow UI
 ```bash
-# Open editor
-open https://supabase.com/dashboard/project/swfyuwkptusceiouqlks/editor
+# Open dashboard
+open https://klarpakke-c65071.webflow.io/app/dashboard
 
-# Check aisignal table for:
-# - status: pending → approved/rejected
-# - approved_by/rejected_by: github_actions
-# - approved_at/rejected_at: timestamps
+# Enter password: tom
+
+# Open Console (F12)
+# Look for: [Klarpakke] UI script loaded
+
+# Click 'Approve' button
+# Expected: [Klarpakke] Success: {signal_id: "...", status: "approved"}
 ```
 
----
-
-## 🔄 Workflow Schedule
-
-- **Automatisk:** Kjører hvert 15. minutt (`*/15 * * * *`)
-- **Manuell trigger:** Via GitHub Actions UI eller `gh workflow run`
-
----
-
-## ⚙️ Configuration
-
-### Approval Thresholds
-
-Rediger `scripts/analyze_signals.py`:
-
-```python
-# Current thresholds:
-if rr_ratio >= 2.0 and confidence >= 0.75:
-    decision = "approved"
-
-# Adjust as needed:
-# - rr_ratio: Risk/Reward ratio minimum
-# - confidence: Confidence percentage minimum (0.0-1.0)
-```
-
-### Workflow Frequency
-
-Rediger `.github/workflows/trading-analysis.yml`:
-
-```yaml
-schedule:
-  - cron: '*/15 * * * *'  # Change to desired frequency
-```
-
----
-
-## 🚨 Troubleshooting
-
-### Keys ikke gyldige
-
+#### 3. Test Edge Functions
 ```bash
-# Debug lokalt
-bash scripts/debug-keys.sh
+# Test generate-trading-signal
+supabase functions invoke generate-trading-signal \
+  --data '{"symbol":"BTC","timeframe":"1h"}'
 
-# Hvis feiler, kjør ultimate-fix på nytt
-bash scripts/ultimate-fix.sh
-```
+# Expected:
+# {"signal_id": "...", "symbol": "BTC", "direction": "BUY", ...}
 
-### Workflow feiler i GitHub Actions
-
-```bash
-# Check secrets er satt
-gh secret list
-
-# Re-sync
-bash scripts/sync-secrets.sh push
-
-# Trigger på nytt
-gh workflow run trading-analysis.yml
-```
-
-### Python script feiler
-
-```bash
-# Test lokalt med full output
-source .env.migration
-export SUPABASE_PROJECT_ID
-export SUPABASE_SERVICE_ROLE_KEY
-python3 scripts/analyze_signals.py
+# Check logs
+make edge-logs
 ```
 
 ---
 
-## 📞 Support
+## 🔧 Troubleshooting
 
-Problemer? Kjør debug og sjekk output:
+### Webflow Sync Fails (HTTP 400)
+**Symptom:** `❌ BTC BUY (HTTP 400)`
 
+**Fix:**
 ```bash
-bash scripts/debug-keys.sh
-gh run view --log
+# 1. Debug collection schema
+bash scripts/debug-webflow-collection.sh
+
+# 2. Check field mapping matches
+# 3. Verify API token has 'cms:write' scope
+# 4. Re-run complete deployment
+bash scripts/complete-deployment.sh
+```
+
+### Webflow Sync Fails (HTTP 404)
+**Symptom:** `❌ BTC BUY (HTTP 404)`
+
+**Cause:** Wrong Collection ID
+
+**Fix:**
+```bash
+# Get correct Collection ID
+bash scripts/get-webflow-collection-id.sh
+
+# Verify .env updated
+cat .env | grep WEBFLOW_COLLECTION_ID
+
+# Re-run sync
+bash scripts/webflow-sync.sh
+```
+
+### Webflow UI Not Loading
+**Symptom:** Console shows no `[Klarpakke]` messages
+
+**Fix:**
+1. Verify Custom Code saved: Project Settings → Custom Code
+2. Hard refresh: Cmd+Shift+R
+3. Check JavaScript syntax errors in Console
+4. Re-paste JavaScript:
+   ```bash
+   bash scripts/webflow-one-click.sh
+   ```
+
+### Dashboard 404
+**Symptom:** `/app/dashboard` returns 404
+
+**Fix:**
+1. Check page exists in Webflow: Pages panel → /app/dashboard
+2. Verify page is published
+3. Check password protection enabled
+4. Re-publish site from Webflow Designer
+
+---
+
+## 📈 Monitoring
+
+### Live Dashboards
+- **Supabase**: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks
+- **Webflow CMS**: https://webflow.com/dashboard/sites/69743573d50cc16bbbe54344/collections/6978258967f5139c7426902d
+- **GitHub Actions**: https://github.com/tombomann/klarpakke/actions
+- **Live Site**: https://klarpakke-c65071.webflow.io/app/dashboard
+
+### Key Metrics
+```bash
+# Supabase stats
+make test
+
+# Export KPIs (last 30 days)
+bash scripts/export-kpis.sh 30
+
+# Edge Function logs
+make edge-logs
+
+# Count synced signals
+curl -s "${SUPABASE_URL}/rest/v1/signals?select=count" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" | jq .
 ```
 
 ---
 
-## 🎉 Success Indicators
+## 📚 Next Steps
 
-✅ Lokalt script kjører uten errors  
-✅ GitHub Actions workflow blir grønn  
-✅ Supabase `aisignal` tabell oppdateres  
-✅ `approved_by` eller `rejected_by` kolonner fylles ut  
+### Production Readiness
+1. **Custom Domain**: Connect `klarpakke.no` in Webflow
+2. **User Auth**: Replace password with Supabase Auth
+3. **Real Trading**: Connect to broker API (Alpaca, Interactive Brokers)
+4. **Monitoring**: Add Sentry for error tracking
+5. **Alerts**: Setup Slack notifications via Make.com
+
+### Paper Trading (7 days)
+```bash
+# Run paper trading validation
+make paper-trading
+
+# Target metrics:
+# - Win rate: >65%
+# - Reward/Risk: >1.5
+# - Max drawdown: <10%
+```
+
+### Scale Up
+1. Increase signal generation frequency (hourly → every 15 min)
+2. Add more symbols (BTC, ETH, SPY, QQQ, etc.)
+3. Implement portfolio management (position sizing, risk limits)
+4. Add backtesting (test strategies on historical data)
 
 ---
 
-**Ready to go? Run this:**
+## 🔗 Resources
 
-```bash
-cd ~/klarpakke && git pull && bash scripts/ultimate-fix.sh
-```
+- **Main README**: [README.md](./README.md)
+- **Architecture**: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- **Webflow Deployment**: [docs/WEBFLOW-DEPLOYMENT.md](./docs/WEBFLOW-DEPLOYMENT.md)
+- **Deployment Status**: [DEPLOYMENT-STATUS.md](./DEPLOYMENT-STATUS.md)
+
+---
+
+## ❓ FAQ
+
+### Q: How long does deployment take?
+A: ~10 minutes total (5 min automated + 5 min Webflow UI)
+
+### Q: Do I need to manually sync signals?
+A: No, GitHub Actions syncs every 5 minutes automatically.
+
+### Q: Can I change the password?
+A: Yes, in Webflow: Pages → /app/dashboard → Settings → Password Protection
+
+### Q: How do I add more signals?
+A: Run `make paper-seed` or call Edge Function `generate-trading-signal`
+
+### Q: Is this production-ready?
+A: No, it's a demo/MVP. Add auth, monitoring, and real broker integration for production.
+
+---
+
+**Last Updated**: 27. januar 2026  
+**Version**: 1.0
+
+🎉 **Ready to deploy? Run the one-command quickstart at the top!**
