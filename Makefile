@@ -3,6 +3,10 @@
 
 .DEFAULT_GOAL := help
 
+# Load .env for all targets
+-include .env
+export
+
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
@@ -66,7 +70,7 @@ edge-test-live: ## Test Edge Functions (requires .env)
 # GitHub Actions
 gh-secrets: ## Setup GitHub secrets for Actions
 	@echo "🔐 Setting GitHub secrets..."
-	@set -a && source .env && set +a && \
+	@set -a && test -f .env && source .env && set +a && \
 	gh secret set SUPABASE_URL --body "$$SUPABASE_URL" && \
 	gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY" && \
 	gh secret set SUPABASE_SECRET_KEY --body "$$SUPABASE_SECRET_KEY"
@@ -98,12 +102,12 @@ status: ## Show system status
 
 # Demo/Papertrading
 paper-seed: ## Seed demo signals for papertrading
-	@bash scripts/paper-seed.sh
+	@set -a && test -f .env && source .env && set +a && bash scripts/paper-seed.sh
 
 webflow-export: ## Export pending signals to CSV for Webflow CMS import
-	@bash scripts/webflow-export-csv.sh
+	@set -a && test -f .env && source .env && set +a && bash scripts/webflow-export-csv.sh
 
-# Make.com (requires .env.migration with MAKE_API_TOKEN + MAKE_ORG_ID)
+# Make.com (requires .env.migration with MAKE_API_TOKEN + MAKE_TEAM_ID)
 make-import: ## Import Make.com blueprints (needs .env.migration)
 	@bash scripts/import-now.sh
 
