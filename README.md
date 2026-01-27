@@ -7,7 +7,66 @@
 
 ---
 
-## ⚡ Quickstart (5 minutter)
+## ⚡ ONE-CLICK INSTALL (ANBEFALT)
+
+**Installer alt automatisk på 5 minutter:**
+
+```bash
+# 1. Klon repository
+git clone https://github.com/tombomann/klarpakke.git
+cd klarpakke
+
+# 2. Kjør one-click installer
+curl -fsSL https://raw.githubusercontent.com/tombomann/klarpakke/main/scripts/one-click-install.sh | bash
+```
+
+**Hva dette gjør:**
+- ✅ Oppretter `.env` med Supabase-nøkler
+- ✅ Verifiserer database-tabeller (4 tabeller)
+- ✅ Deployer 6 Edge Functions til Supabase
+- ✅ Setter opp GitHub Actions (auto-deploy + sync)
+- ✅ Konfigurerer Webflow API integration
+- ✅ Synker secrets til GitHub
+- ✅ Klar for Webflow UI deployment
+
+**Forventet output:**
+```
+🚀 Klarpakke One-Click Full Automation
+=======================================
+
+📦 Step 1/5: Bootstrap environment...
+✅ Bootstrap complete
+
+🔧 Step 2/5: Deploying Edge Functions...
+✅ 6 functions deployed
+
+🌐 Step 3/5: Webflow integration setup...
+✅ Webflow credentials saved
+
+🔐 Step 4/5: Syncing GitHub secrets...
+✅ GitHub secrets synced
+
+🎨 Step 5/5: Webflow UI deployment...
+✅ Ready to deploy!
+
+🎉 ONE-CLICK SETUP COMPLETE!
+```
+
+**Neste steg:**
+```bash
+# Deploy Webflow UI (2 min guided process)
+bash scripts/webflow-one-click.sh
+
+# Generate demo signals
+make paper-seed
+
+# Monitor logs
+make edge-logs
+```
+
+---
+
+## 📚 Manual Quickstart (hvis one-click feiler)
 
 ### 1. Klon & bootstrap
 ```bash
@@ -94,7 +153,7 @@ GitHub Actions ⇆ Supabase (service_role)
 | `ai_calls`         | AI‑kost/logging  | `endpoint`, `tokens_in`, `cost_usd`           |
 
 - **RLS**: public read (`anon`), full write via `service_role`
-- **Seed**: én rad i `daily_risk_meter` per dag, brukt som enkel «circuit breaker»
+- **Seed**: én rad i `daily_risk_meter` per dag, brukt som enkel «sircuit breaker»
 
 ---
 
@@ -127,15 +186,53 @@ make gh-secrets       # synk .env → GitHub secrets
 make gh-sync-secrets  # trigge secrets‑sync workflow
 make gh-test          # trigge scheduled‑tasks manuelt
 
+# Webflow
+make webflow-sync     # sync Supabase → Webflow CMS
+make webflow-deploy   # deploy UI (interactive)
+
 # One‑shot full automatisering
 make auto          # edge-full + gh-secrets + oppsummering
 ```
 
 ---
 
+## 🔄 Webflow Integration (100% Gratis)
+
+**Auto-sync Supabase → Webflow CMS hver 5. minutt:**
+
+### Setup
+```bash
+# 1. Få Webflow API token:
+# - Gå til: https://webflow.com/dashboard/sites
+# - Velg site → Settings → Integrations → API Access
+# - Generate token → copy
+
+# 2. Legg til .env
+echo "WEBFLOW_API_TOKEN=your_token" >> .env
+echo "WEBFLOW_COLLECTION_ID=your_collection_id" >> .env
+
+# 3. Test sync manuelt
+bash scripts/webflow-sync.sh
+
+# 4. Aktiver auto-sync (GitHub Actions)
+make gh-secrets  # synker WEBFLOW_* til GitHub
+```
+
+**Hva skjer:**
+- ✅ GitHub Action kjører `webflow-sync.sh` hver 5. minutt
+- ✅ Henter nye signals fra Supabase (`status=pending`)
+- ✅ Pusher til Webflow CMS via API
+- ✅ 100% gratis (GitHub Actions free tier = 2000 min/måned)
+
+**Overvåk:**
+- GitHub Actions: https://github.com/tombomann/klarpakke/actions/workflows/webflow-sync.yml
+- Manuell trigger: `gh workflow run webflow-sync.yml`
+
+---
+
 ## 🔄 Make.com blueprints (one click)
 
-Vi håndterer Make som “lim” og importerer scenarier fra `make/flows/*.json`.
+Vi håndterer Make som "lim" og importerer scenarier fra `make/flows/*.json`.
 
 ### Import (lokalt)
 
@@ -167,6 +264,19 @@ Kontrakt (eksempel):
 - På knapp: `data-kp-action="APPROVE"` eller `data-kp-action="REJECT"`
 - På knapp eller kort: `data-signal-id="<uuid>"`
 
+### Deploy Webflow UI
+
+```bash
+# Interactive 2-minutters guide
+bash scripts/webflow-one-click.sh
+
+# Hva dette gjør:
+# 1. Kopierer web/klarpakke-ui.js til clipboard
+# 2. Åpner Webflow Designer i browser
+# 3. Guider deg gjennom: Paste JS → Password → Publish
+# 4. Verifiserer deployment
+```
+
 ### Demo-tilgang
 
 - Første demo: password-protect `/app/*`.
@@ -174,8 +284,17 @@ Kontrakt (eksempel):
 
 ### Innhold inn i Webflow (to modus)
 
-1) CSV (fallback / manuelt): Webflow CMS støtter import av collection-items fra CSV.
-2) Automatisert (anbefalt): Sync fra Supabase via Make/Webflow API (rate limits + throttling).
+1) **CSV (fallback / manuelt)**: Webflow CMS støtter import av collection-items fra CSV.
+   ```bash
+   make webflow-export  # Eksporter signals til CSV
+   # Importer manuelt i Webflow CMS
+   ```
+
+2) **Automatisert (anbefalt)**: Auto-sync via GitHub Actions (oppsatt av one-click installer).
+   ```bash
+   # Allerede aktivert - sjekk status:
+   gh workflow view webflow-sync.yml
+   ```
 
 ### Publish-disciplin
 
@@ -216,6 +335,10 @@ SUPABASE_URL=https://swfyuwkptusceiouqlks.supabase.co
 SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SECRET_KEY=eyJhbGc...
 
+# Webflow (for auto-sync)
+WEBFLOW_API_TOKEN=...
+WEBFLOW_COLLECTION_ID=...
+
 # Make.com (for import)
 MAKE_API_TOKEN=...
 MAKE_ORG_ID=...
@@ -225,7 +348,7 @@ MAKE_ORG_ID=...
 
 ## 🧭 Filosofi: Klarpakke for småsparere
 
-- **Enkel** – hele systemet skal kunne startes med `make bootstrap` + `make auto`
+- **Enkel** – hele systemet skal kunne startes med `curl ... | bash` (one-click)
 - **Risikoredusert** – all risiko logges i `daily_risk_meter`, og pipeline skal heller stoppe nye signaler enn å overskride `max_risk_allowed`
 - **Etterprøvbar** – alle AI‑kall logges i `ai_calls`, alle signaler/trades er SQL‑spørrbare fra Supabase‑UI
 
@@ -234,25 +357,23 @@ Denne README beskriver "hva gjort" og "hvordan kjøre". For hver ny feature bør
 - **"HVORFOR"** (risiko/edge) i commit‑melding
 - **"TEST"** (kommando + forventet output)
 
-## 🧪 Webflow demo (papertrading)
+---
 
-Mål: Etter publish kan du som demobruker teste hele flyten (signal → approve/reject → paper-execution → logging) uten ekte ordre.
+## 📊 Status & Dashboards
 
-### Webflow: tynn UI (anbefalt)
-- Lag sider under `/app/*` (ryddig skille), f.eks. `/app/signals`, `/app/positions`, `/app/risk`.
-- Legg inn **én** global JS-linje i Webflow (Project/Page settings → custom code), ikke lim inn store scriptblokker. [Webflow: Custom code i head/body] [web:89]
-- Bruk `data-*` attributter (ikke `id`) så listevisning med mange kort fungerer.
+- **Supabase**: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks
+- **GitHub Actions**: https://github.com/tombomann/klarpakke/actions
+- **Webflow**: https://webflow.com/dashboard/sites/klarpakke
+- **Documentation**: Se `DEPLOYMENT-STATUS.md` for detaljert status
 
-Kontrakt (eksempel på attributter):
-- På knapp: `data-kp-action="APPROVE"` eller `data-kp-action="REJECT"`
-- På knapp eller kort: `data-signal-id="<uuid>"`
+---
 
-### Innhold inn i Webflow (to modus)
-1) CSV (fallback / manuelt): Webflow CMS støtter import av collection-items fra CSV. [web:149][web:137]  
-2) Automatisert (anbefalt): Sync fra Supabase via Make/Webflow API, men respekter rate limits. [web:114]
+## 👥 Support
 
-### Publish-disciplin
-Kjør Audit-panel før publish, og fiks alt det Webflow flagger før du trykker publish. [web:81]
+- **Issues**: https://github.com/tombomann/klarpakke/issues
+- **Discussions**: https://github.com/tombomann/klarpakke/discussions
 
-### Innlogging (demo)
-Bruk enkel “password protected” for `/app/*` i første demo; ikke bygg ny auth rundt Webflow User Accounts nå (de er under endring/sunset i Webflow). [web:119]
+---
+
+**Last updated**: 27. januar 2026  
+**Version**: 2.0 (One-Click Automation)
