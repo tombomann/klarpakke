@@ -23,10 +23,18 @@ for f in make/flows/*.json; do
   bp=$(jq -c '.' < "$f" | jq -Rs .)
   
   # Import with teamId (not organizationId)
+  payload=$(jq -n \
+    --argjson teamId "$MAKE_TEAM_ID" \
+    --arg blueprint "$bp" \
+    --arg scheduling '{"type":"indefinitely"}' \
+    '{teamId: $teamId, blueprint: $blueprint, scheduling: $scheduling}')
+  
   result=$(curl -s -X POST "https://eu1.make.com/api/v2/scenarios" \
     -H "Authorization: Token $MAKE_API_TOKEN" \
     -H "Content-Type: application/json" \
-    -d "{\"teamId\":$MAKE_TEAM_ID,\"blueprint\":$bp,\"scheduling\":\"{\\\"type\\\":\\\"indefinitely\\\"}\"}")  if echo "$result" | jq -e '.scenario.id' >/dev/null 2>&1; then
+    -d "$payload")
+  
+  if echo "$result" | jq -e '.scenario.id' >/dev/null 2>&1; then
     id=$(echo "$result" | jq -r '.scenario.id')
     echo "✅ ID: $id"
   else
