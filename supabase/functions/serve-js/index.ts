@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 // Embedded UI script (no external file dependency)
 const UI_SCRIPT = `// Klarpakke Webflow UI Script
@@ -78,22 +79,24 @@ const UI_SCRIPT = `// Klarpakke Webflow UI Script
 })();`;
 
 serve(async (req) => {
-  const headers = new Headers({
-    'Content-Type': 'application/javascript; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Cache-Control': 'public, max-age=300', // 5 min cache
-  });
-
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers, status: 204 });
+    return new Response(null, {
+      headers: corsHeaders,
+      status: 204,
+    });
   }
 
-  // Return JS script (no auth required)
+  // Return JS script (public, no auth required)
   if (req.method === 'GET') {
-    return new Response(UI_SCRIPT, { headers, status: 200 });
+    return new Response(UI_SCRIPT, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'public, max-age=300',
+      },
+      status: 200,
+    });
   }
 
   return new Response('Method not allowed', { status: 405 });
