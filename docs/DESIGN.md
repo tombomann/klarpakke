@@ -44,9 +44,10 @@ Hold paletten stram: nøytrale flater + én primærfarge + trafikklys for status
 - `--ok`: `#4CAF50`
 - `--warn`: `#FFC107`
 - `--danger`: `#F44336`
+- `--extreme`: `#111827`  /* Sort = “ekstra høy risiko” */
 
 Tilgjengelighet:
-- Bruk aldri farge alene; legg alltid på label/ikon ("Grønn", "Gul", "Rød" + forklaring).
+- Bruk aldri farge alene; legg alltid på label/ikon ("Grønn", "Gul", "Rød", "Sort" + forklaring).
 - Sjekk kontrast før vi låser endelig palett.
 
 ---
@@ -112,11 +113,11 @@ Plan-kort skal alltid ha:
 - Inkluderer: flere strategier/markeder, mer avanserte signaler og rapporter.
 - Budskap: “For deg som forstår grunnprinsippene og vil ha mer fleksibilitet.”
 
-### EXTREM — Høy risiko (krever opplæring)
-- Risiko: Rød.
-- Inkluderer: høyere frekvens/mer aggressive strategier.
+### EXTREM — HØY RISIKO — $199 (krever opplæring)
+- Risiko: Sort (ekstra høy risiko).
+- Inkluderer: høyere frekvens/mer aggressive strategier og flere signaler.
 - **Krav:** må fullføre opplæring og bestå en enkel quiz før aktivering.
-- Budskap: “Kun for erfarne. Systemet kan gi raske tap. Vi stopper deg hvis du bryter risikorammene.”
+- Budskap (kort): “Dette er for erfarne. Du kan tape penger raskt. Vi stopper nye handler hvis du når risikogrensen.”
 
 ---
 
