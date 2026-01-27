@@ -44,8 +44,6 @@ echo ""
 echo "Syncing to Webflow CMS..."
 
 # Counters (must be in same shell, not subshell)
-SYNCED=0
-FAILED=0
 TEMP_FILE=$(mktemp)
 
 # Push each signal to Webflow
@@ -56,20 +54,21 @@ echo "$BODY" | jq -c '.[]' | while read -r signal; do
   CONFIDENCE=$(echo "$signal" | jq -r '.confidence // 0')
   REASONING=$(echo "$signal" | jq -r '.reasoning // "No reasoning"' | sed 's/"/\\"/g')
   
-  # Generate slug (Webflow requirement)
+  # Generate slug (Webflow requirement - must be unique)
   SLUG="signal-${SIGNAL_ID:0:8}"
   
-  # Webflow API v2 format (fieldData + isArchived + isDraft)
+  # Webflow API v2 format - MATCH ACTUAL COLLECTION SCHEMA
+  # Fields from API: symbol, direction, confidence, reason (not reasoning!), status, name, slug
   PAYLOAD=$(cat <<EOF
 {
   "fieldData": {
     "name": "$SYMBOL $DIRECTION",
     "slug": "$SLUG",
-    "signal-id": "$SIGNAL_ID",
     "symbol": "$SYMBOL",
     "direction": "$DIRECTION",
     "confidence": $CONFIDENCE,
-    "reasoning": "$REASONING"
+    "reason": "$REASONING",
+    "status": "pending"
   },
   "isArchived": false,
   "isDraft": false
@@ -111,15 +110,16 @@ echo "=============================="
 echo ""
 
 if [[ "$FAILED" -gt 0 ]]; then
-  echo "⚠️  Some syncs failed - check Webflow Collection fields"
-  echo "   Expected fields in collection:"
-  echo "   - name (Plain Text)"
-  echo "   - slug (Plain Text, unique)"
-  echo "   - signal-id (Plain Text)"
-  echo "   - symbol (Plain Text)"
-  echo "   - direction (Plain Text)"
-  echo "   - confidence (Number)"
-  echo "   - reasoning (Plain Text)"
+  echo "⚠️  Some syncs failed - check error messages above"
+  echo ""
+  echo "Webflow Collection schema (from API):"
+  echo "  - name (Plain Text, required)"
+  echo "  - slug (Plain Text, required, unique)"
+  echo "  - symbol (Plain Text)"
+  echo "  - direction (Plain Text)"
+  echo "  - confidence (Number)"
+  echo "  - reason (Plain Text) ← NOTE: 'reason' not 'reasoning'"
+  echo "  - status (Plain Text)"
   exit 1
 fi
 
