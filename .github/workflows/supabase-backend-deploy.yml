@@ -23,8 +23,5 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
-          # Optional for public-config (safe to expose)
-          KLARPAKKE_ASSET_BASE: ${{ secrets.KLARPAKKE_ASSET_BASE }}
-          KLARPAKKE_DEBUG: ${{ secrets.KLARPAKKE_DEBUG }}
         run: |
           bash scripts/deploy-backend.sh

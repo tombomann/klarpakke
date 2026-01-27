@@ -1,68 +1,13 @@
-name: 🚀 One-Click Deploy
+name: Deprecated - use Supabase backend deploy
 
 on:
   workflow_dispatch:
-    inputs:
-      action:
-        description: 'Action'
-        required: true
-        default: 'full-deploy'
-        type: choice
-        options:
-          - full-deploy
-          - dns-only
-          - backend-only
 
 jobs:
-  deploy:
+  deprecated:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: 🌐 Update DNS
-        if: contains(github.event.inputs.action, 'dns') || github.event.inputs.action == 'full-deploy'
+      - name: Notice
         run: |
-          curl -X POST "https://api.domeneshop.no/v0/domains/${{ secrets.DOMENESHOP_DOMAIN_ID }}/dns" \
-            -u "${{ secrets.DOMENESHOP_USER }}:${{ secrets.DOMENESHOP_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{"host":"api","ttl":3600,"type":"A","data":"${{ secrets.ORACLE_VM_IP }}"}'
-
-      - name: 🔧 Deploy Backend
-        if: github.event.inputs.action == 'backend-only' || github.event.inputs.action == 'full-deploy'
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/key
-          chmod 600 ~/.ssh/key
-          
-          ssh -i ~/.ssh/key -o StrictHostKeyChecking=no opc@${{ secrets.ORACLE_VM_IP }} << 'REMOTE'
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - 2>/dev/null || true
-            sudo apt-get install -y nodejs nginx 2>/dev/null || true
-            
-            mkdir -p ~/api
-            cat > ~/api/server.js << 'JS'
-require('http').createServer((req,res)=>{
-  res.writeHead(200, {'Content-Type': 'application/json'});
-  res.end(JSON.stringify({status:'running',endpoint:req.url,time:new Date()}));
-}).listen(3000);
-JS
-            
-            pkill -f "node.*server.js" || true
-            nohup node ~/api/server.js > ~/api/server.log 2>&1 &
-            
-            sudo tee /etc/nginx/sites-available/default > /dev/null << 'NGINX'
-server {
-  listen 80;
-  server_name api.klarpakke.no;
-  location / {
-    proxy_pass http://localhost:3000;
-    proxy_set_header Host $host;
-  }
-}
-NGINX
-            
-            sudo systemctl restart nginx
-          REMOTE
-
-      - name: ✅ Test
-        if: github.event.inputs.action == 'full-deploy'
-        run: sleep 5 && curl http://api.klarpakke.no
+          echo "This workflow is deprecated to avoid double-deploys."
+          echo "Use: .github/workflows/supabase-backend-deploy.yml"
