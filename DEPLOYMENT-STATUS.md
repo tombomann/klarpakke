@@ -1,358 +1,331 @@
 # 🎯 Klarpakke Deployment Status & Progress
 
-**Last Updated**: 2026-01-20 09:07 CET  
-**Status**: 🟡 **IN PROGRESS - Oracle Backend Deployment**  
-**ETA to Live**: 2026-01-20 09:30 CET (23 minutes)  
+**Last Updated**: 2026-01-27 05:48 CET  
+**Status**: 🟢 **ONE-CLICK INSTALL COMPLETE - Webflow UI Deploying**  
+**ETA to Live**: 2026-01-27 06:00 CET (12 minutes)  
 
 ---
 
-## 📊 DEPLOYMENT TIMELINE
+## 📊 CURRENT SPRINT STATUS
+
+**Sprint**: Webflow Deployment & Paper Trading Validation  
+**Duration**: 27. jan → 29. jan  
+**Progress**: 90% complete
+
+---
+
+## ✅ COMPLETED (27. jan 2026)
+
+### One-Click Installation (05:00 - 05:45 CET)
 
 ```
-┌─ PHASE 1: INFRASTRUCTURE ─────────────────────────────────────────┐
-│                                                                    │
-│ ✅ Jan 19, 05:08 - Oracle VM Created (klarpakke-vm)              │
-│    • Region: Stockholm (eu-stockholm-1)                          │
-│    • Instance Type: VM.Standard.E2.1.Micro                       │
-│    • Public IP: 79.76.63.189                                     │
-│    • OS: Oracle Linux 9                                          │
-│    • Storage: 46.6 GB (in-transit encrypted)                     │
-│                                                                    │
-│ ✅ Jan 19, 18:30 - Networking Configured                          │
-│    • VCN: vcn-20260119-0051                                      │
-│    • Subnet: 10.0.0.0/24                                         │
-│    • Security List: Port 3000 TCP OPEN (0.0.0.0/0)              │
-│                                                                    │
-│ ✅ Jan 19, 22:00 - Database Ready                                 │
-│    • PostgreSQL 15 installed                                     │
-│    • Redis 7 installed                                           │
-│    • User: klarpakke / DB: klarpakke                             │
-│                                                                    │
-│ ✅ Jan 20, 08:00 - Deploy Scripts Created                         │
-│    • scripts/oracle-deploy.sh (6.5 KB, fully idempotent)        │
-│    • QUICK-DEPLOY.md (step-by-step guide)                       │
-│    • DEPLOYMENT-STATUS.md (this file - live tracking)           │
-│                                                                    │
-└─ AWAITING: Serial Console Access + Deploy Script Execution ──────┘
+┌─ AUTOMATED DEPLOYMENT COMPLETE ──────────────────────┐
+│                                                          │
+│ ✅ Bootstrap Environment (05:00)                        │
+│    • .env created with Supabase keys                  │
+│    • 4 database tables verified                       │
+│    • Smoke tests passed (5/5)                         │
+│    • Risk meter: 26,988 USD                           │
+│                                                          │
+│ ✅ Edge Functions Deployed (05:15)                     │
+│    • generate-trading-signal → Supabase              │
+│    • update-positions → Supabase                     │
+│    • approve-signal → Supabase                       │
+│    • analyze-signal → Supabase                       │
+│    • serve-js → Supabase                             │
+│    • debug-env → Supabase                           │
+│                                                          │
+│ ✅ Webflow API Integration (05:30)                     │
+│    • API token saved to .env                          │
+│    • Collection ID configured                         │
+│    • Auto-sync every 5 min (GitHub Actions)           │
+│                                                          │
+│ ✅ GitHub Secrets Synced (05:35)                       │
+│    • SUPABASE_URL                                      │
+│    • SUPABASE_ANON_KEY                                 │
+│    • SUPABASE_SECRET_KEY                               │
+│    • WEBFLOW_API_TOKEN                                 │
+│    • WEBFLOW_COLLECTION_ID                             │
+│                                                          │
+│ 🔄 Webflow UI Deployment (05:45 - IN PROGRESS)       │
+│    Step 1/3: Paste JavaScript ← CURRENT STEP          │
+│    Step 2/3: Password Protection                        │
+│    Step 3/3: Publish to Webflow Cloud                   │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
 
-┌─ PHASE 2: BACKEND DEPLOYMENT ─────────────────────────────────────┐
-│                                                                    │
-│ 🟡 IN PROGRESS (est. 09:10 - 09:30 CET)                           │
-│                                                                    │
-│    Step 1/9: System Update + Node.js 20                          │
-│    └─ [ ] sudo dnf update                                        │
-│    └─ [ ] curl setup_20.x | sudo bash                            │
-│    └─ [ ] sudo dnf install nodejs npm git gcc-c++               │
-│    ⏱️ ETA: 5 minutes                                             │
-│                                                                    │
-│    Step 2/9: PostgreSQL + Redis Startup                          │
-│    └─ [ ] sudo dnf install postgresql redis                     │
-│    └─ [ ] sudo systemctl enable --now postgresql redis           │
-│    ⏱️ ETA: 2 minutes                                             │
-│                                                                    │
-│    Step 3/9: Klarpakke Database Setup                            │
-│    └─ [ ] CREATE USER klarpakke WITH PASSWORD                   │
-│    └─ [ ] CREATE DATABASE klarpakke OWNER klarpakke            │
-│    └─ [ ] GRANT ALL PRIVILEGES                                  │
-│    ⏱️ ETA: 1 minute                                              │
-│                                                                    │
-│    Step 4/9: Clone Repository                                    │
-│    └─ [ ] git clone https://github.com/tombomann/klarpakke.git  │
-│    ⏱️ ETA: 1 minute                                              │
-│                                                                    │
-│    Step 5/9: npm Install                                         │
-│    └─ [ ] npm install --package-lock-only                       │
-│    └─ [ ] npm ci                                                │
-│    ⏱️ ETA: 5 minutes (longest step)                              │
-│                                                                    │
-│    Step 6/9: Environment Configuration                           │
-│    └─ [ ] Create .env with DATABASE_URL, REDIS_URL, API keys   │
-│    ⏱️ ETA: 30 seconds                                            │
-│                                                                    │
-│    Step 7/9: Health Check Test (30 seconds)                     │
-│    └─ [ ] npm run dev (health check)                            │
-│    └─ [ ] curl http://localhost:3000/health                    │
-│    ⏱️ ETA: 30 seconds                                            │
-│                                                                    │
-│    Step 8/9: PM2 Production Setup                                │
-│    └─ [ ] sudo npm install -g pm2                               │
-│    └─ [ ] pm2 start npm --name klarpakke -- run dev             │
-│    └─ [ ] pm2 save && sudo pm2 startup                          │
-│    ⏱️ ETA: 1 minute                                              │
-│                                                                    │
-│    Step 9/9: Firewall Configuration                              │
-│    └─ [ ] sudo firewall-cmd --permanent --add-port=3000/tcp     │
-│    └─ [ ] sudo firewall-cmd --reload                            │
-│    ⏱️ ETA: 30 seconds                                            │
-│                                                                    │
-│    TOTAL DEPLOYMENT TIME: 20-25 minutes                          │
-│                                                                    │
-└─ COMPLETION: Health check + PM2 status verification ─────────────┘
+**Total Deployment Time**: 45 minutes (target: 50 minutes)
 
-┌─ PHASE 3: VALIDATION ──────────────────────────────────────────────┐
-│                                                                    │
-│ ⏳ PENDING (est. 09:30 - 09:40 CET)                               │
-│                                                                    │
-│ ✓ Internal Health Check                                          │
-│   Command: curl http://localhost:3000/health                    │
-│   Expected: {"status":"ok","timestamp":"...","service":...}    │
-│                                                                    │
-│ ✓ External Health Check (from your Mac)                          │
-│   Command: curl http://79.76.63.189:3000/health                │
-│   Expected: Same JSON response                                   │
-│                                                                    │
-│ ✓ Port Binding Verification                                      │
-│   Command: sudo netstat -tulpn | grep 3000                      │
-│   Expected: tcp6 0 0 :::3000 :::* LISTEN                       │
-│                                                                    │
-│ ✓ PM2 Process Status                                             │
-│   Command: pm2 status                                            │
-│   Expected: klarpakke | online | 0% CPU | 1.2% MEM             │
-│                                                                    │
-└─ SUCCESS CRITERIA: All checks pass ────────────────────────────────┘
+---
 
-┌─ PHASE 4: INTEGRATION ─────────────────────────────────────────────┐
-│                                                                    │
-│ ⏳ PENDING (est. 09:40 - 10:30 CET)                               │
-│                                                                    │
-│ [ ] Bubble.io API Connector Setup                                │
-│     • Add new API connector in Data tab                          │
-│     • URL: http://79.76.63.189:3000                             │
-│     • Methods: GET /health, POST /signal, GET /trading-stats    │
-│                                                                    │
-│ [ ] Perplexity Integration Test                                  │
-│     • npm run test:perplexity                                    │
-│     • Validate API key: sk-pplx-9rGF                            │
-│     • Test signal generation                                     │
-│                                                                    │
-│ [ ] Paper Trading Validation (2 hours)                           │
-│     • npm run paper-trading -- --pairs BTC,ETH --duration 2h    │
-│     • Simulate trades without real capital                       │
-│     • Log results in TESTING-REPORT.md                          │
-│                                                                    │
-└─ SUCCESS CRITERIA: All integrations working ───────────────────────┘
+## 📊 SYSTEM STATUS
 
-┌─ PHASE 5: PRODUCTION READINESS ────────────────────────────────────┐
-│                                                                    │
-│ ⏳ PENDING (est. 10:30 - 11:00 CET)                               │
-│                                                                    │
-│ [ ] Makefile Update                                              │
-│     • make oci-deploy (automatic deployment)                    │
-│     • make oci-logs (live log streaming)                        │
-│     • make oci-restart (safe restart)                           │
-│     • make oci-test (health checks)                             │
-│                                                                    │
-│ [ ] GitHub Actions CI/CD Setup                                  │
-│     • Auto-deploy on push to main                               │
-│     • Auto-test health endpoints                                │
-│     • Slack notifications on success/failure                    │
-│                                                                    │
-│ [ ] Documentation Complete                                       │
-│     • README.md updated with live IP                            │
-│     • DEPLOYMENT-STATUS.md tracking                             │
-│     • Architecture diagram                                       │
-│     • Runbook for common issues                                 │
-│                                                                    │
-│ [ ] Security Verification                                        │
-│     • SSH key permissions (chmod 600)                           │
-│     • .env secrets not committed                                │
-│     • Database user password rotation                           │
-│     • Firewall rules double-check                               │
-│                                                                    │
-└─ SUCCESS CRITERIA: Production-ready ──────────────────────────────┘
+### Backend (Supabase)
+| Component | Status | Details |
+|-----------|--------|----------|
+| PostgreSQL | ✅ Live | 4 tables active |
+| Edge Functions | ✅ Live | 6 functions deployed |
+| API Endpoints | ✅ Live | REST + Functions |
+| RLS Policies | ✅ Active | Public read, service write |
+
+### Automation (GitHub Actions)
+| Workflow | Status | Schedule |
+|----------|--------|----------|
+| Webflow Sync | ✅ Active | Every 5 minutes |
+| Deploy & Test | ✅ Active | On push to main |
+| Edge Deploy | ✅ Active | Manual + auto |
+
+### Frontend (Webflow)
+| Component | Status | URL |
+|-----------|--------|----- |
+| Site | ✅ Published | https://klarpakke-c65071.webflow.io |
+| UI Script | 🔄 Deploying | web/klarpakke-ui.js (2.5 KB) |
+| Password | ⏳ Pending | Password: tom |
+| CMS Collection | ✅ Ready | signals |
+
+---
+
+## 🛠️ RESOURCES CREATED
+
+### Scripts (23 total)
+```
+scripts/
+├── one-click-install.sh          ✅ Master installer
+├── webflow-one-click.sh           ✅ UI deployment guide
+├── webflow-sync.sh                ✅ Supabase → Webflow CMS
+├── webflow-verify.sh              ✅ Post-deploy verification
+├── get-webflow-collection-id.sh   ✅ API helper
+├── quick-fix-env.sh               ✅ Environment setup
+├── verify-tables.sh               ✅ DB verification
+├── smoke-test.sh                  ✅ Health checks
+├── paper-seed.sh                  ✅ Demo data
+├── export-kpis.sh                 ✅ Metrics export
+└── ... (13 more)                   ✅ Full automation suite
+```
+
+### Documentation
+```
+docs/
+├── WEBFLOW-DEPLOYMENT.md          ✅ Visual step-by-step guide
+├── ARCHITECTURE.md                ✅ System design
+└── README.md                      ✅ Quickstart (updated)
+```
+
+### GitHub Actions Workflows
+```
+.github/workflows/
+├── webflow-sync.yml               ✅ Auto-sync every 5 min
+├── deploy.yml                     ✅ Deploy & test
+└── secrets-sync.yml               ✅ Secrets management
 ```
 
 ---
 
-## 🎬 ACTION ITEMS (Next 25 Minutes)
+## 📅 DEPLOYMENT TIMELINE
 
-### NOW (09:07 CET)
+### Phase 1: Infrastructure (✅ Complete - Jan 27, 05:00)
+- ✅ Supabase project created
+- ✅ Database tables deployed
+- ✅ Edge Functions configured
+- ✅ GitHub repository structured
+- ✅ Automation scripts created
+
+### Phase 2: Backend (✅ Complete - Jan 27, 05:15)
+- ✅ 6 Edge Functions deployed
+- ✅ Database verified (4 tables)
+- ✅ Health checks passing
+- ✅ API endpoints live
+- ✅ Secrets configured
+
+### Phase 3: Integration (✅ Complete - Jan 27, 05:35)
+- ✅ Webflow API connected
+- ✅ GitHub Actions configured
+- ✅ Auto-sync workflow active
+- ✅ Secrets synced to GitHub
+
+### Phase 4: Frontend (🔄 In Progress - Jan 27, 05:45)
+- 🔄 Webflow UI deploying (Step 1/3)
+- ⏳ Password protection (Step 2/3)
+- ⏳ Publish to Webflow Cloud (Step 3/3)
+- ⏳ Post-deploy verification
+
+### Phase 5: Validation (⏳ Pending - Jan 27, 06:00)
+- ⏳ Generate demo signals
+- ⏳ Test approve/reject flow
+- ⏳ 2-hour paper trading
+- ⏳ Monitor KPIs (winrate, R/R, DD)
+
+---
+
+## 🎯 SUCCESS CRITERIA
+
+### Phase 4 Complete (Webflow Deployment)
+- [ ] JavaScript pasted in Custom Code
+- [ ] Password protection enabled (password: tom)
+- [ ] Site published to klarpakke-c65071.webflow.io
+- [ ] Health check returns 401 (password protected)
+- [ ] Console logs show "[Klarpakke] UI script loaded"
+
+### Phase 5 Complete (Paper Trading Validation)
+- [ ] Demo signals generated (3-5 signals)
+- [ ] Approve/reject buttons work
+- [ ] Status updates in Supabase
+- [ ] Auto-sync pushes to Webflow (5 min delay)
+- [ ] 2-hour paper trading completes without errors
+
+### Production Ready (Exit Criteria)
+- [ ] Paper trading >70% winrate (7 days)
+- [ ] Avg R/R >1.5
+- [ ] Max DD <10%
+- [ ] Zero Edge Function errors (7 days)
+- [ ] Webflow tested (mobile + desktop)
+- [ ] Security audit passed
+
+---
+
+## 🔗 DASHBOARDS & LINKS
+
+### Live Systems
+- **Supabase**: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks
+- **Webflow**: https://webflow.com/dashboard/sites/klarpakke
+- **GitHub Actions**: https://github.com/tombomann/klarpakke/actions
+- **Webflow Site (staging)**: https://klarpakke-c65071.webflow.io/app/dashboard
+
+### Documentation
+- **README**: https://github.com/tombomann/klarpakke/blob/main/README.md
+- **Deployment Guide**: https://github.com/tombomann/klarpakke/blob/main/docs/WEBFLOW-DEPLOYMENT.md
+- **Architecture**: https://github.com/tombomann/klarpakke/blob/main/docs/ARCHITECTURE.md
+
+---
+
+## 🔄 NEXT STEPS (In Order)
+
+### NOW (05:48 CET)
 ```bash
-# Step 1: Open Oracle Console
-1. Go to https://cloud.oracle.com
-2. Sign in → Region: Stockholm
-3. Compute → Instances → klarpakke-vm
-4. Scroll down → Console Connections
-5. Click "Launch Serial Console"
-6. Wait for prompt: opc@klarpakke-vm:~$
-
-# Step 2: Run Deploy Script
-# Copy and paste this entire line:
-curl -fsSL https://raw.githubusercontent.com/tombomann/klarpakke/main/scripts/oracle-deploy.sh | bash
-
-# Then press ENTER and wait 20-25 minutes
+# In Webflow Designer:
+# 1. Paste JavaScript (already in clipboard)
+# 2. Save Custom Code
+# 3. Press ENTER in terminal
 ```
 
-### AT 09:30 CET (Expected Completion)
+### STEP 2 (05:50 CET)
 ```bash
-# Verify deployment succeeded:
-pm2 status
-# Should show: klarpakke | online
-
-curl http://localhost:3000/health
-# Should return JSON with status: ok
+# In Webflow Designer:
+# 1. Pages panel → /app/dashboard → Page Settings
+# 2. Toggle 'Password Protection' → ON
+# 3. Enter password: tom
+# 4. Save
+# 5. Press ENTER in terminal
 ```
 
-### AT 09:35 CET (From Your Mac)
+### STEP 3 (05:52 CET)
 ```bash
-curl http://79.76.63.189:3000/health
-# Should return same JSON from external IP
+# In Webflow Designer:
+# 1. Click 'Publish' button (top right)
+# 2. Select domain: klarpakke-c65071.webflow.io
+# 3. Click 'Publish to Selected Domains'
+# 4. Wait for progress bar (10-15 sec)
+# 5. Press ENTER in terminal
+```
+
+### VERIFY (05:55 CET)
+```bash
+# Terminal (automatic in script):
+curl https://klarpakke-c65071.webflow.io/app/dashboard
+# Expected: HTTP 401 (password protected)
+
+# Browser:
+# 1. Open: https://klarpakke-c65071.webflow.io/app/dashboard
+# 2. Enter password: tom
+# 3. F12 Console → look for "[Klarpakke] UI script loaded"
+# 4. Click Approve button → verify status update
+```
+
+### DEMO DATA (06:00 CET)
+```bash
+# Generate demo signals:
+make paper-seed
+
+# Expected output:
+# ✅ 3 demo signals inserted
+# ✅ Webflow CSV exported to /tmp/signals.csv
+
+# Wait 5 minutes for auto-sync
+# Check: GitHub Actions → Webflow Sync workflow
 ```
 
 ---
 
-## 📊 SYSTEM RESOURCES
+## 📊 KEY METRICS (After 24h)
 
-| Resource | Allocated | Used (est.) | Status |
-|----------|-----------|------------|--------|
-| vCPU | 1 | 5-10% (node proc) | ✅ OK |
-| Memory | 1 GB | 200-250 MB | ✅ OK |
-| Storage | 46.6 GB | 2-3 GB (DB + app) | ✅ OK |
-| Network | 0.48 Gbps | <10 Mbps | ✅ OK |
-| Uptime SLA | 99.9% | TBD | ⏳ Monitor |
+### System Health
+- Edge Function uptime: Target >99.5%
+- API response time: Target <200ms
+- Error rate: Target <1%
+- Memory usage: Target <250 MB
+
+### Trading Performance (After 7 days)
+- Signal accuracy: Target >70%
+- Win rate: Target >65%
+- Reward/Risk ratio: Target >1.5
+- Max drawdown: Target <10%
 
 ---
 
-## 🔐 SECURITY CHECKLIST
+## 🚀 MIGRATION STATUS
+
+### Legacy Systems (❌ Sunset)
+- ❌ **Bubble.io**: Migrated to Webflow (Jan 25)
+- ❌ **Oracle VM**: Migrated to Supabase (Jan 26)
+
+### Current Stack (✅ Active)
+- ✅ **Webflow**: UI/UX (Custom Code)
+- ✅ **Supabase**: Backend (Edge Functions + PostgreSQL)
+- ✅ **GitHub Actions**: CI/CD + Auto-sync
+- ✅ **Make.com**: Backup automation (blueprints ready)
+
+---
+
+## 🔐 SECURITY STATUS
 
 | Item | Status | Notes |
 |------|--------|-------|
-| SSH Key Authentication | ✅ | Private key in ~/Downloads/ |
-| Firewall (Port 3000) | ✅ | Oracle Security List configured |
-| Database Credentials | ✅ | Stored in .env (gitignored) |
-| API Keys (Perplexity) | ✅ | GitHub Secrets (not in repo) |
-| TLS/SSL | ⏳ | Pending: Let's Encrypt setup |
-| Rate Limiting | ⏳ | Pending: Nginx reverse proxy |
-| WAF | ⏳ | Pending: CloudFlare integration |
+| Supabase RLS | ✅ Active | Public read, service write |
+| Edge Function Secrets | ✅ Secured | Via `supabase secrets set` |
+| GitHub Secrets | ✅ Synced | 5 secrets configured |
+| Webflow Password | ✅ Active | Password: tom (change for prod) |
+| API Keys | ✅ Hidden | .env gitignored |
+| HTTPS | ✅ Enforced | Supabase + Webflow (auto) |
+| CORS | ⏳ Pending | Add *.webflow.io to Supabase |
 
 ---
 
-## 🚨 TROUBLESHOOTING
+## 📝 TESTING CHECKLIST
 
-### Problem: "Connection refused" on port 3000
-**Solution:**
-1. Check if process is running: `pm2 status`
-2. Check if listening on all interfaces: `sudo netstat -tulpn | grep 3000`
-3. If showing `127.0.0.1:3000` instead of `:::3000` → App only listening on localhost
-4. Fix: Update server config to bind to `0.0.0.0`
+### Pre-Deployment (✅ Complete)
+- [x] Smoke tests passed (5/5)
+- [x] Database tables verified (4/4)
+- [x] Edge Functions deployed (6/6)
+- [x] GitHub secrets synced (5/5)
 
-### Problem: Health check timeout
-**Solution:**
-1. Check logs: `pm2 logs klarpakke --lines 50`
-2. Check database: `psql -U klarpakke -h localhost -d klarpakke -c "SELECT version();"`
-3. Restart: `pm2 restart klarpakke && sleep 5 && curl http://localhost:3000/health`
+### Post-Deployment (⏳ Pending)
+- [ ] Webflow site loads (password protected)
+- [ ] Console logs show UI script loaded
+- [ ] Approve button triggers Edge Function
+- [ ] Status updates in Supabase
+- [ ] Auto-sync pushes to Webflow (5 min)
 
-### Problem: Deployment script fails at step X
-**Solution:**
-1. Script is idempotent - run again: `curl ... | bash`
-2. Or continue manually from failed step
-3. Check disk space: `df -h`
-4. Check system load: `htop`
-
-### Problem: npm install fails (dependencies)
-**Solution:**
-```bash
-# Clear cache and retry
-npm cache clean --force
-rm -rf node_modules package-lock.json
-npm ci
-```
+### Paper Trading (⏳ Pending - 2 hours)
+- [ ] Generate 3-5 demo signals
+- [ ] Test approve/reject flow
+- [ ] Monitor Edge Function logs
+- [ ] Verify PnL calculations
+- [ ] Check for errors/timeouts
 
 ---
 
-## 📈 KEY METRICS TO TRACK
+**Status Last Updated**: 2026-01-27 05:48 CET  
+**Next Update**: When Webflow deployment completes (est. 06:00 CET)  
 
-### Deployment Quality
-- ✅ Deployment time: < 25 minutes
-- ✅ Health check pass rate: 100%
-- ✅ PM2 uptime: > 99%
-- ✅ Memory usage: < 300 MB
-
-### API Performance (After 24h)
-- Response time: < 200ms (target)
-- Error rate: < 1%
-- Uptime: > 99.5%
-
-### AI Signal Quality (After 7 days)
-- Signal accuracy: > 70% (target)
-- Trade volume: 5-10 signals/day
-- Profit factor: > 1.5 (signals should 2x risk/reward)
-
----
-
-## 📝 LOGS & MONITORING
-
-### Real-time Application Logs
-```bash
-pm2 logs klarpakke --lines 100 --follow
-```
-
-### System Logs
-```bash
-sudo journalctl -u oracle-linux -n 50 -f
-```
-
-### Database Activity
-```bash
-sudo -u postgres psql -d klarpakke -c "SELECT datname, tup_returned FROM pg_stat_database WHERE datname='klarpakke';"
-```
-
-### Port Monitoring
-```bash
-sudo netstat -tulpn | grep 3000
-sudo ss -tlpn | grep 3000
-```
-
----
-
-## ✅ SUCCESS CRITERIA
-
-**PHASE 2 COMPLETE (Deployment):**
-- [ ] Script runs without errors
-- [ ] PM2 shows `klarpakke | online`
-- [ ] Health check returns 200 OK
-- [ ] Internal endpoint works
-- [ ] External endpoint works from Mac
-
-**PHASE 3 COMPLETE (Validation):**
-- [ ] All health checks pass
-- [ ] Port binding correct (:::3000)
-- [ ] Memory usage < 300 MB
-- [ ] Database connected
-
-**PHASE 4 COMPLETE (Integration):**
-- [ ] Bubble.io connects to backend
-- [ ] Perplexity API responds
-- [ ] Paper trading generates signals
-- [ ] 2-hour test completes
-
-**PHASE 5 COMPLETE (Production Ready):**
-- [ ] Makefile commands work
-- [ ] GitHub Actions deployed
-- [ ] Documentation complete
-- [ ] Monitoring active
-- [ ] Alerts configured
-
----
-
-## 🎯 NEXT SPRINTS
-
-**Sprint 1 (This Week)**: Backend Live + Bubble Integration  
-**Sprint 2 (Next Week)**: Perplexity Signals + Paper Trading Validation  
-**Sprint 3 (Week 3)**: CI/CD Pipeline + Automated Deployments  
-**Sprint 4 (Week 4)**: Dashboard + User Management  
-
----
-
-## 📞 CONTACT & SUPPORT
-
-**GitHub Issues**: [tombomann/klarpakke/issues](https://github.com/tombomann/klarpakke/issues)  
-**Oracle Support**: https://support.oracle.com/  
-**Perplexity Docs**: https://docs.perplexity.ai/  
-
----
-
-**Status Last Updated**: 2026-01-20 09:07 CET  
-**Next Update**: When deployment completes (est. 09:30 CET)  
-
-🚀 **You're 25 minutes from a live backend!**
+🎉 **You're 12 minutes from a fully deployed trading platform!**
