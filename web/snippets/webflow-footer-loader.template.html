@@ -1,0 +1,34 @@
+<!-- Klarpakke Webflow footer loader TEMPLATE -->
+<!-- This file is meant to be rendered by CI/CD and pushed to Webflow via API. -->
+
+<script>
+  // Runtime config (anon key is publishable; never put service_role in client code)
+  window.KLARPAKKE_CONFIG = {
+    supabaseUrl: '__SUPABASE_URL__',
+    supabaseAnonKey: '__SUPABASE_ANON_KEY__',
+    debug: __DEBUG_BOOL__,
+  };
+
+  // Asset base (CDN) for auto-updating scripts.
+  window.KLARPAKKE_ASSET_BASE = '__ASSET_BASE__';
+
+  (function () {
+    var base = window.KLARPAKKE_ASSET_BASE;
+    var v = '__CACHE_BUST__';
+
+    function load(src) {
+      var s = document.createElement('script');
+      s.src = src + '?v=' + encodeURIComponent(v);
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+
+    // Always load site engine
+    load(base + '/klarpakke-site.js');
+
+    // Only load calculator on /kalkulator
+    if (window.location && window.location.pathname && window.location.pathname.indexOf('/kalkulator') !== -1) {
+      load(base + '/calculator.js');
+    }
+  })();
+</script>
