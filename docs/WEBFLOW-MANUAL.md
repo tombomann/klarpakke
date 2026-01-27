@@ -21,7 +21,20 @@ console.log('Hei');
 
 ---
 
-## Steg-for-Steg Deploy
+## Anbefalt: liten loader (ikke stor blob)
+
+For å minimere copy/paste-feil og unngå at store scriptblokker blir til “tekst”, anbefaler vi å lime inn **kun en liten loader** i Project Settings. Den loader alltid siste versjon av `web/klarpakke-site.js` fra repo/CDN.
+
+1. Åpne `web/snippets/webflow-footer-loader.html` i repo.
+2. Kopier innholdet.
+3. Webflow Designer → Project Settings → Custom Code → **Footer Code (Before </body>)**.
+4. Lim inn, lagre og publiser.
+
+**Viktig:** aldri legg `SUPABASE_SERVICE_ROLE_KEY` i Webflow/klientkode (den er kun for server/Edge Functions).
+
+---
+
+## Alternativ: full manuell liming (legacy)
 
 ### 1. Hent Koden
 Koden for hele nettstedet (Forside + Dashboard) ligger i filen `web/klarpakke-site.js`.
@@ -62,5 +75,5 @@ Resultatet i boksen skal se slik ut:
 | Symptom | Årsak | Løsning |
 |---------|-------|---------|
 | **Koden vises som tekst på nettsiden** | Mangler `<script>` tags | Legg til `<script>` før og `</script>` etter koden. |
-| **Ingenting skjer (Dashboard er tomt)** | Feil passord / API-feil | Sjekk Console (F12) for røde feilmeldinger. |
-| **Gamle elementer vises fortsatt** | Caching / Gammel kode | Sjekk om du har limt inn kode på *enkeltsider* (Page Settings) også. Slett den, bruk kun Project Settings. |
+| **Ingenting skjer (Dashboard er tomt)** | Mangler IDs / feil config / API-feil | Sjekk Console (F12) for feilmeldinger og verifiser at siden har forventede element-IDs. |
+| **Gamle elementer vises fortsatt** | Caching / Gammel kode | Hard refresh / incognito, og sjekk at du ikke har limt inn kode på enkeltsider (Page Settings) også. |
