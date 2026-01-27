@@ -10,6 +10,10 @@ export
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
+# 🚀 ONE-CLICK DEPLOY (NEW)
+deploy-all: ## 🚀 Deploy everything (backend + frontend + seed + test)
+	@bash scripts/one-click-deploy.sh
+
 bootstrap: ## Complete setup from scratch
 	@echo "🚀 Klarpakke Full Automation Setup"
 	@echo "==================================="
