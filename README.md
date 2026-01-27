@@ -40,7 +40,15 @@ Dette gir deg:
 - `update-positions` (PnL‑oppdatering fra børs → Supabase)
 - Secrets (`PERPLEXITY_API_KEY`) satt i Supabase
 
-### 3. Verifiser
+### 3. One-click alt (anbefalt)
+
+```bash
+make auto
+```
+
+Kjører `edge-full` + setter GitHub secrets (for CI) i en kjede.
+
+### 4. Verifiser
 ```bash
 make test        # verify-tables + smoke-test
 make edge-test   # kall edge‑funksjoner via HTTP
@@ -56,20 +64,6 @@ Forventet output (`make test`):
 ✅ SELECT works
 ✅ Risk meter OK
 ```
-
-### 4. Importer Make.com‑scenarier (valgfritt, Webflow‑delen)
-```bash
-make make-import
-```
-
-Følg instruksene for å importere 4 automasjons‑blueprints:
-1. **Trading Signal Generator** – Perplexity → Supabase
-2. **Position Tracker** – 15min PnL‑oppdateringer
-3. **Daily Risk Reset** – 00:00 UTC reset + arkivering
-4. **Webflow Sync** – Godkjente signaler → Webflow CMS
-
-> 💡 **Klar filosofi:** all business‑logikk i Supabase (SQL + Edge Functions),
-> alt «lim» i Make.com, all visning i Webflow.
 
 ---
 
@@ -137,15 +131,56 @@ make gh-test          # trigge scheduled‑tasks manuelt
 make auto          # edge-full + gh-secrets + oppsummering
 ```
 
-### GitHub Actions (`.github/workflows/deploy.yml`)
+---
 
-- Kjører på `push` til `main` og PRs
-- Setter opp `.env` fra GitHub Secrets
-- Installerer `jq` + `curl`
-- Kjører `verify-tables.sh` og `smoke-test.sh`
-- Failer raskt hvis Supabase ikke svarer eller tabeller mangler
+## 🔄 Make.com blueprints (one click)
 
-Resultat: **hver commit mot `main` er en faktisk helsesjekk av trading‑pipelinen**.
+Vi håndterer Make som “lim” og importerer scenarier fra `make/flows/*.json`.
+
+### Import (lokalt)
+
+1) Lag `.env.migration` med:
+- `MAKE_API_TOKEN`
+- `MAKE_ORG_ID`
+
+2) Kjør import:
+
+```bash
+bash scripts/import-now.sh
+```
+
+Målet er at blueprint/scheduling håndteres som *string* payload i Make API-kall (scriptet gjør double-encoding).
+
+---
+
+## 🧪 Webflow demo (papertrading)
+
+Mål: Etter publish kan du teste hele flyten (signal → approve/reject → paper-execution → logging) uten ekte ordre.
+
+### Webflow: tynn UI (anbefalt)
+
+- Lag sider under `/app/*` (ryddig skille), f.eks. `/app/signals`, `/app/positions`, `/app/risk`.
+- Legg inn **én** global JS-linje i Webflow (Project/Page settings → custom code), ikke lim inn store scriptblokker.
+- Bruk `data-*` attributter (ikke `id`) så listevisning med mange kort fungerer.
+
+Kontrakt (eksempel):
+- På knapp: `data-kp-action="APPROVE"` eller `data-kp-action="REJECT"`
+- På knapp eller kort: `data-signal-id="<uuid>"`
+
+### Demo-tilgang
+
+- Første demo: password-protect `/app/*`.
+- Demo-passord (staging): `tom` (endre før prod).
+
+### Innhold inn i Webflow (to modus)
+
+1) CSV (fallback / manuelt): Webflow CMS støtter import av collection-items fra CSV.
+2) Automatisert (anbefalt): Sync fra Supabase via Make/Webflow API (rate limits + throttling).
+
+### Publish-disciplin
+
+- Kjør Audit før publish.
+- Publish til staging først, så prod.
 
 ---
 
@@ -169,52 +204,6 @@ Resultat: **hver commit mot `main` er en faktisk helsesjekk av trading‑pipelin
   4. `SELECT` i `signals` med `anon`
   5. Les siste `daily_risk_meter` og printer nåværende risiko
 
-Alle API‑kall bruker wrapper‑funksjonen `req()` som splitter body og HTTP‑kode uten GNU‑avhengigheter.
-
----
-
-## 🔄 Hva vi fortsatt kan automatisere (plan)
-
-**Problem + DoD (≤4 punkter)**
-
-1. Minimere manuelle steg i Supabase (SQL‑deploy + edge‑secrets)
-2. Formalisere KPI‑eksport (30/90‑dager) som én kommando
-3. Automatisere Make.com‑eval (status på alle scenario‑IDs via API)
-4. Dokumentere full «Signal → Risk → Execution → Logging» som kjørbar CLI‑demo
-
-### Arkitektur (flowchart som tabell)
-
-| Steg | Komponent      | Input                         | Output                          |
-|------|----------------|-------------------------------|----------------------------------|
-| 1    | CLI/Makefile   | `.env`                        | Supabase URL/keys i env          |
-| 2    | SQL (`DEPLOY`) | `DEPLOY-NOW.sql`              | Tabeller + RLS + seed            |
-| 3    | Edge Functions | Supabase prosjekt + secrets   | `generate-trading-signal`, `update-positions` |
-| 4    | Make.com       | Supabase keys + Webflow       | Scenarier som kjører på schedule/webhooks |
-| 5    | GitHub Actions | Repo + Supabase secrets       | CI smoke‑tests på hvert push     |
-| 6    | KPI‑skript     | Supabase `ai_calls`/`signals` | CSV/rapport for winrate/R/drawdown |
-
----
-
-## 📈 Neste steg (konkrete automatiseringer)
-
-Disse er neste kandidater å implementere i repoet (scripts + Makefile‑targets):
-
-1. **`scripts/deploy-schema.sh`** – les `DEPLOY-NOW.sql` og kjør mot Supabase via `psql`/Supabase CLI (slik at vi kan kommentere inn `deploy-schema`‑jobben i GitHub Actions senere).
-2. **`scripts/export-kpis.sh`** – eksisterer allerede, men README skal tydelig forklare hvordan den brukes for:
-   - winrate per symbol
-   - gjennomsnittlig R
-   - maks drawdown
-3. **`scripts/make-status.sh`** – enkel Make.com‑status via API (teamId + scenarioId), med summarisk output: `OK / PAUSED / BROKEN` per scenario.
-4. **`scripts/demo-signal-run.sh`** – kjedet pipeline som:
-   - kaller edge `generate-trading-signal`
-   - sjekker at ny rad dukker opp i `signals`
-   - oppdaterer `daily_risk_meter`
-
-Alle nye scripts skal følge prosjekt‑standarden:
-- `set -euo pipefail`
-- `trap` for opprydding ved feil
-- `curl -s -f -w "%{http_code}"` + `jq -e` for API
-
 ---
 
 ## 🔐 Miljøvariabler
@@ -227,22 +216,9 @@ SUPABASE_URL=https://swfyuwkptusceiouqlks.supabase.co
 SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SECRET_KEY=eyJhbGc...
 
-# Make.com / Webflow (settes manuelt i Make‑scenarier)
-WEBFLOW_API_TOKEN=...
-WEBFLOW_COLLECTION_ID=...
-```
-
-### GitHub Secrets (CI)
-
-Legg til i: `https://github.com/tombomann/klarpakke/settings/secrets/actions`
-
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SECRET_KEY`
-
-Deretter:
-```bash
-make gh-secrets
+# Make.com (for import)
+MAKE_API_TOKEN=...
+MAKE_ORG_ID=...
 ```
 
 ---
