@@ -1,0 +1,13 @@
+# Makefile patch: auto-source .env for gh-secrets (non-interactive)
+
+.PHONY: gh-secrets
+
+gh-secrets:
+	@echo "🔐 Setting GitHub secrets..."
+	set -a
+	@source .env || echo "⚠️ .env not found, skipping secrets"
+	set +a
+	@gh secret set SUPABASE_URL --body "$$SUPABASE_URL" || echo "SUPABASE_URL already set"
+	@gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY" || echo "SUPABASE_ANON_KEY already set"
+	@gh secret set SUPABASE_SECRET_KEY --body "$$SUPABASE_SECRET_KEY" || echo "SUPABASE_SECRET_KEY already set"
+	@echo "✅ GitHub secrets set (or already exists)"
