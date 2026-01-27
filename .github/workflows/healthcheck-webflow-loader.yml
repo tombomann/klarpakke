@@ -1,0 +1,68 @@
+name: Healthcheck (Webflow loader)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *' # daily 05:00 UTC
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Run healthcheck
+        id: check
+        env:
+          KLARPAKKE_PUBLIC_CONFIG_URL: ${{ secrets.KLARPAKKE_PUBLIC_CONFIG_URL }}
+        run: |
+          set -e
+          echo "report<<'EOF'" >> $GITHUB_OUTPUT
+          bash scripts/healthcheck-webflow-loader.sh | tee /tmp/report.txt
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Open/Update issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Klarpakke healthcheck failing (Webflow loader)';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Find existing open issue with same title
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existing = issues.find(i => i.title === title);
+            const body = [
+              'Healthcheck feilet.',
+              '',
+              `Run: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              '',
+              'Sjekk spesielt:',
+              '- KLARPAKKE_PUBLIC_CONFIG_URL (200 + forventede felter)',
+              '- assetBase/klarpakke-site.js (200)',
+            ].join('\n');
+
+            if (!existing) {
+              await github.rest.issues.create({ owner, repo, title, body });
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: existing.number,
+              body,
+            });
