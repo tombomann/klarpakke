@@ -66,9 +66,10 @@ edge-test-live: ## Test Edge Functions (requires .env)
 # GitHub Actions
 gh-secrets: ## Setup GitHub secrets for Actions
 	@echo "🔐 Setting GitHub secrets..."
-	@gh secret set SUPABASE_URL --body "$$SUPABASE_URL"
-	@gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY"
-	@gh secret set SUPABASE_SECRET_KEY --body "$$SUPABASE_SECRET_KEY"
+	@set -a && source .env && set +a && \
+	gh secret set SUPABASE_URL --body "$$SUPABASE_URL" && \
+	gh secret set SUPABASE_ANON_KEY --body "$$SUPABASE_ANON_KEY" && \
+	gh secret set SUPABASE_SECRET_KEY --body "$$SUPABASE_SECRET_KEY"
 	@echo "✅ GitHub secrets set"
 
 gh-sync-secrets: ## Sync GitHub secrets to Supabase Edge (via Actions)
@@ -94,6 +95,17 @@ status: ## Show system status
 	@echo "=== Klarpakke Status ==="
 	@test -f .env && echo "✅ .env exists" || echo "❌ .env missing"
 	@bash scripts/verify-tables.sh 2>/dev/null | grep -E '✅|❌' || echo "⚠️ Unable to check DB"
+
+# Demo/Papertrading
+paper-seed: ## Seed demo signals for papertrading
+	@bash scripts/paper-seed.sh
+
+webflow-export: ## Export pending signals to CSV for Webflow CMS import
+	@bash scripts/webflow-export-csv.sh
+
+# Make.com (requires .env.migration with MAKE_API_TOKEN + MAKE_ORG_ID)
+make-import: ## Import Make.com blueprints (needs .env.migration)
+	@bash scripts/import-now.sh
 
 # Quick commands
 auto: edge-full gh-secrets ## Full automation setup
