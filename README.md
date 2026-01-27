@@ -280,7 +280,7 @@ bash scripts/webflow-one-click.sh
 ### Demo-tilgang
 
 - Første demo: password-protect `/app/*`.
-- Demo-passord (staging): `tom` (endre før prod).
+- Demo-passord (staging): `tom123` (endre før prod).
 
 ### Innhold inn i Webflow (to modus)
 
