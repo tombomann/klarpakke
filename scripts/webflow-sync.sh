@@ -19,7 +19,7 @@ fi
 # Fetch pending signals from Supabase
 echo "Fetching pending signals..."
 RESP=$(curl -s -f -w "###HTTP_CODE###%{http_code}" \
-  "${SUPABASE_URL}/rest/v1/signals?status=eq.pending&select=*" \
+  "${SUPABASE_URL}/rest/v1/signals?status=eq.pending&select=*&limit=20" \
   -H "apikey: ${SUPABASE_ANON_KEY}" \
   -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
 
@@ -43,47 +43,65 @@ fi
 echo ""
 echo "Syncing to Webflow CMS..."
 
-# Push each signal to Webflow
+# Counters (must be in same shell, not subshell)
 SYNCED=0
 FAILED=0
+TEMP_FILE=$(mktemp)
 
+# Push each signal to Webflow
 echo "$BODY" | jq -c '.[]' | while read -r signal; do
   SIGNAL_ID=$(echo "$signal" | jq -r '.id')
   SYMBOL=$(echo "$signal" | jq -r '.symbol')
   DIRECTION=$(echo "$signal" | jq -r '.direction')
   CONFIDENCE=$(echo "$signal" | jq -r '.confidence // 0')
-  REASONING=$(echo "$signal" | jq -r '.reasoning // "No reasoning"')
+  REASONING=$(echo "$signal" | jq -r '.reasoning // "No reasoning"' | sed 's/"/\\"/g')
   
   # Generate slug (Webflow requirement)
   SLUG="signal-${SIGNAL_ID:0:8}"
   
+  # Webflow API v2 format (fieldData + isArchived + isDraft)
+  PAYLOAD=$(cat <<EOF
+{
+  "fieldData": {
+    "name": "$SYMBOL $DIRECTION",
+    "slug": "$SLUG",
+    "signal-id": "$SIGNAL_ID",
+    "symbol": "$SYMBOL",
+    "direction": "$DIRECTION",
+    "confidence": $CONFIDENCE,
+    "reasoning": "$REASONING"
+  },
+  "isArchived": false,
+  "isDraft": false
+}
+EOF
+)
+  
   # Create Webflow CMS item
-  WEBFLOW_RESP=$(curl -s -o /dev/null -w "%{http_code}" \
+  WEBFLOW_RESP=$(curl -s -w "###HTTP_CODE###%{http_code}" \
     -X POST "https://api.webflow.com/v2/collections/${WEBFLOW_COLLECTION_ID}/items" \
     -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d "{
-      \"fields\": {
-        \"name\": \"$SYMBOL $DIRECTION\",
-        \"slug\": \"$SLUG\",
-        \"signal-id\": \"$SIGNAL_ID\",
-        \"symbol\": \"$SYMBOL\",
-        \"direction\": \"$DIRECTION\",
-        \"confidence\": $CONFIDENCE,
-        \"reasoning\": \"$REASONING\",
-        \"_archived\": false,
-        \"_draft\": false
-      }
-    }")
+    -d "$PAYLOAD")
   
-  if [[ "$WEBFLOW_RESP" =~ ^20[0-9]$ ]]; then
-    echo "  ✅ $SYMBOL $DIRECTION (confidence: $CONFIDENCE)"
-    SYNCED=$((SYNCED + 1))
+  HTTP_CODE=$(echo "$WEBFLOW_RESP" | grep -oE '[0-9]+$')
+  RESPONSE_BODY=$(echo "$WEBFLOW_RESP" | sed 's/###HTTP_CODE###[0-9]*$//')
+  
+  # 200/201/202 = success
+  if [[ "$HTTP_CODE" =~ ^20[0-2]$ ]]; then
+    echo "  ✅ $SYMBOL $DIRECTION (confidence: $CONFIDENCE%)"
+    echo "success" >> "$TEMP_FILE"
   else
-    echo "  ❌ $SYMBOL $DIRECTION (HTTP $WEBFLOW_RESP)"
-    FAILED=$((FAILED + 1))
+    ERROR_MSG=$(echo "$RESPONSE_BODY" | jq -r '.message // "Unknown error"' 2>/dev/null || echo "Parse error")
+    echo "  ❌ $SYMBOL $DIRECTION (HTTP $HTTP_CODE: $ERROR_MSG)"
+    echo "fail" >> "$TEMP_FILE"
   fi
 done
+
+# Count results from temp file (avoid subshell issues)
+SYNCED=$(grep -c "success" "$TEMP_FILE" 2>/dev/null || echo 0)
+FAILED=$(grep -c "fail" "$TEMP_FILE" 2>/dev/null || echo 0)
+rm -f "$TEMP_FILE"
 
 echo ""
 echo "=============================="
@@ -93,7 +111,15 @@ echo "=============================="
 echo ""
 
 if [[ "$FAILED" -gt 0 ]]; then
-  echo "⚠️  Some syncs failed - check Webflow API token & collection ID"
+  echo "⚠️  Some syncs failed - check Webflow Collection fields"
+  echo "   Expected fields in collection:"
+  echo "   - name (Plain Text)"
+  echo "   - slug (Plain Text, unique)"
+  echo "   - signal-id (Plain Text)"
+  echo "   - symbol (Plain Text)"
+  echo "   - direction (Plain Text)"
+  echo "   - confidence (Number)"
+  echo "   - reasoning (Plain Text)"
   exit 1
 fi
 
