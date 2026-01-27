@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load .env if not already set
-if [[ -z "${SUPABASE_URL:-}" ]]; then
+# Always load .env to ensure all vars are set
+if [[ -f .env ]]; then
+  set -a
   source .env
+  set +a
+else
+  echo "❌ .env not found. Run 'make bootstrap' first."
+  exit 1
 fi
 
 echo "🌱 Seeding paper trading signals..."
