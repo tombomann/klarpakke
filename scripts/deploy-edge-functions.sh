@@ -36,12 +36,17 @@ echo ""
 echo "📦 Deploying Edge Functions..."
 echo ""
 
-echo "1. generate-trading-signal"
-supabase functions deploy generate-trading-signal
+FUNCTIONS=("generate-trading-signal" "update-positions" "approve-signal" "serve-signals")
 
-echo ""
-echo "2. update-positions"
-supabase functions deploy update-positions
+for func in "${FUNCTIONS[@]}"; do
+  echo "Deploying $func..."
+  if [ -d "supabase/functions/$func" ]; then
+    supabase functions deploy "$func" --no-verify-jwt
+  else
+    echo "⚠️  Function directory not found: supabase/functions/$func"
+  fi
+  echo ""
+done
 
 echo ""
 echo "✅ Deployment complete!"
@@ -51,5 +56,5 @@ echo "  supabase secrets set PERPLEXITY_API_KEY=pplx-..."
 echo ""
 echo "Test functions:"
 echo "  supabase functions invoke generate-trading-signal"
-echo "  supabase functions invoke update-positions"
+echo "  supabase functions invoke serve-signals"
 echo ""
