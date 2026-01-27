@@ -1,4 +1,4 @@
-// Klarpakke Site Engine v2.0
+// Klarpakke Site Engine v2.1
 // Master UI script for all Webflow pages
 // Handles: Landing, Dashboard, Settings, Pricing, Calculator
 
@@ -6,9 +6,9 @@
   'use strict';
 
   const SUPABASE_URL = 'https://swfyuwkptusceiouqlks.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3Znl1d2twdHVzY2Vpb3VxbGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU1ODQ3OTksImV4cCI6MjA1MTE2MDc5OX0.C8-YqV3mQpxWqkX7oqD1k7iYqY6jz4Jxqq1z_1z1z1z';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3Znl1d2twdHVzY2Vpb3VxbGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxODY4MDEsImV4cCI6MjA4NDc2MjgwMX0.ZSpSU8pkIDxY0DrBKRitID2Sx6OUUGy1D4bFMVSwWlk';
 
-  console.log('[Klarpakke] Site engine v2.0 loaded');
+  console.log('[Klarpakke] Site engine v2.1 loaded');
 
   // Detect current page
   const path = window.location.pathname;
@@ -18,12 +18,74 @@
   const isCalculator = path.includes('/kalkulator');
 
   // ═══════════════════════════════════════════════════════════
-  // DASHBOARD: Signal Approval
+  // DASHBOARD: Fetch + Display Signals
   // ═══════════════════════════════════════════════════════════
   if (isDashboard) {
     console.log('[Klarpakke] Dashboard mode');
 
-    // Attach event listeners to approve/reject buttons
+    // Load pending signals on page load
+    loadSignals();
+
+    function loadSignals() {
+      const container = document.getElementById('signals-container');
+      if (!container) {
+        console.warn('[Klarpakke] No #signals-container found on page');
+        return;
+      }
+
+      container.innerHTML = '<p>Loading signals...</p>';
+
+      // Fetch pending signals from Supabase
+      fetch(`${SUPABASE_URL}/rest/v1/signals?select=*&status=eq.pending&order=created_at.desc&limit=20`, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        return res.json();
+      })
+      .then(signals => {
+        console.log('[Klarpakke] Loaded signals:', signals.length);
+
+        if (signals.length === 0) {
+          container.innerHTML = '<p>No pending signals. <a href="#">Seed demo data</a></p>';
+          return;
+        }
+
+        // Render signals as cards
+        container.innerHTML = signals.map(signal => `
+          <div class="signal-card" data-signal-id="${signal.id}">
+            <div class="signal-header">
+              <span class="symbol">${signal.symbol}</span>
+              <span class="direction ${signal.direction.toLowerCase()}">${signal.direction}</span>
+            </div>
+            <div class="signal-body">
+              <p class="reason">${signal.reason}</p>
+              <div class="meta">
+                <span>Confidence: ${Math.round(signal.confidence * 100)}%</span>
+                <span>Model: ${signal.ai_model}</span>
+              </div>
+            </div>
+            <div class="signal-actions">
+              <button class="btn-approve" data-action="approve" data-signal-id="${signal.id}">
+                ✅ Approve
+              </button>
+              <button class="btn-reject" data-action="reject" data-signal-id="${signal.id}">
+                ❌ Reject
+              </button>
+            </div>
+          </div>
+        `).join('');
+      })
+      .catch(err => {
+        console.error('[Klarpakke] Error loading signals:', err);
+        container.innerHTML = `<p style="color:red;">Failed to load signals: ${err.message}</p>`;
+      });
+    }
+
+    // Handle approve/reject actions
     document.addEventListener('click', function(e) {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
@@ -38,6 +100,9 @@
 
       console.log(`[Klarpakke] ${action} signal ${signalId}`);
 
+      btn.disabled = true;
+      btn.textContent = action === 'approve' ? 'Approving...' : 'Rejecting...';
+
       // Call Supabase Edge Function
       fetch(`${SUPABASE_URL}/functions/v1/approve-signal`, {
         method: 'POST',
@@ -50,15 +115,24 @@
           action: action.toUpperCase()
         })
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         console.log('[Klarpakke] Success:', data);
-        // Update UI (change button state, show toast, etc.)
         btn.textContent = action === 'approve' ? '✅ Approved' : '❌ Rejected';
-        btn.disabled = true;
+        
+        // Remove signal card from DOM after 2 seconds
+        setTimeout(() => {
+          const card = btn.closest('.signal-card');
+          if (card) card.remove();
+        }, 2000);
       })
       .catch(err => {
         console.error('[Klarpakke] Error:', err);
+        btn.textContent = 'Failed';
+        btn.disabled = false;
         alert('Failed to ' + action + ' signal. Check console.');
       });
     });
