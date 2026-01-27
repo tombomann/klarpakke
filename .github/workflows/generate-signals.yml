@@ -1,0 +1,69 @@
+name: Generate Trading Signals
+
+on:
+  schedule:
+    # Every hour at :15 (market hours)
+    - cron: '15 * * * *'
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: 'Comma-separated symbols (default: BTC,ETH,SOL)'
+        required: false
+        default: 'BTC,ETH,SOL'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Signals via Perplexity
+        env:
+          SUPABASE_URL: https://swfyuwkptusceiouqlks.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        run: |
+          SYMBOLS="${{
+ github.event.inputs.symbols || 'BTC,ETH,SOL' }}"
+          echo "🔍 Generating signals for: $SYMBOLS"
+          
+          # Call Edge Function to generate signal
+          for SYMBOL in $(echo $SYMBOLS | tr ',' ' '); do
+            echo "Analyzing $SYMBOL..."
+            
+            RESPONSE=$(curl -s -w "\n###HTTP_CODE###%{http_code}" \
+              "$SUPABASE_URL/functions/v1/generate-trading-signal" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\":\"$SYMBOL price prediction next 24h, technical analysis\"}")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | sed 's/###HTTP_CODE###//')
+            BODY=$(echo "$RESPONSE" | sed '$ d')
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ $SYMBOL signal generated"
+              echo "$BODY" | jq '.'
+            else
+              echo "❌ $SYMBOL failed (HTTP $HTTP_CODE)"
+            fi
+            
+            # Rate limit: wait 2s between calls
+            sleep 2
+          done
+
+      - name: Summary
+        run: |
+          echo "## Signal Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- Symbols: ${{
+ github.event.inputs.symbols || 'BTC,ETH,SOL' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ✅ Complete" >> $GITHUB_STEP_SUMMARY
+          
+          # Show latest signals
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Latest Signals" >> $GITHUB_STEP_SUMMARY
+          curl -s "https://swfyuwkptusceiouqlks.supabase.co/rest/v1/signals?order=created_at.desc&limit=5" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" | \
+            jq -r '.[] | "- \(.symbol) \(.direction) (\(.confidence * 100)%)"' >> $GITHUB_STEP_SUMMARY
