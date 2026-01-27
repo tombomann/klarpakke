@@ -41,6 +41,35 @@ Follow the interactive guide to:
 
 ---
 
+## 🧭 Konkurrent-sider (sitemap-notater)
+
+Målet her er ikke å kopiere UI, men å kopiere “hvilke sider som må finnes” for å gjøre onboarding, tillit, og self-serve support friksjonsfritt.
+
+- 3Commas: Blog/ressurser, Help Center (getting started + plans + marketplace/signal-sider), tydelig planstruktur/prising.
+- Bitsgap: Egen /pricing-side med plan-nivåer, mye innhold/ressurser i blog/compare-artikler.
+- Pionex: Help Center med konkrete bot-guider (f.eks. grid bot), fokus på parameter/risiko-forklaringer.
+
+---
+
+## 🧾 Progress log
+
+### 2026-01-27 — Webflow deploy v2.0
+
+**HVA gjort**
+- Kjørt `scripts/webflow-one-click.sh` (v2.0) og injisert site-wide JS (Landing + Dashboard + Settings + Pricing).
+- Verifisert at repo er “clean” (git up-to-date) før Webflow-injeksjon.
+- Opprettet/validert Webflow-sider for app-ruter: `/app/settings` og `/app/pricing`.
+
+**HVORFOR**
+- Låse “web-first pipeline” i frontend: Signal → Risk → Execution → Logging (Webflow UI + Make + Supabase).
+- Sørge for at JS aldri rendres som tekst (global footer-injeksjon i riktig felt).
+
+**TEST**
+- Webflow: Save + Publish etter oppdatert Footer code.
+- Besøk `/app/settings` og `/app/pricing` (hard refresh / incognito) og sjekk at siden ikke viser rå JS, samt at console ikke spammer errors.
+
+---
+
 ## 🛠 Automation & Workflows
 
 ### GitHub Actions
