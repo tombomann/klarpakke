@@ -8,7 +8,8 @@
 
 ## 📚 Documentation
 
-- **[AI Model Playbook](docs/ai/MODEL-PLAYBOOK.md)** 👈 **NEW!** (Hvilken AI-modell til hva?)
+- **[AI Model Playbook](docs/ai/MODEL-PLAYBOOK.md)** (Hvilken AI-modell til hva?)
+- **[Webflow Manual Guide](docs/WEBFLOW-MANUAL.md)** 👈 **KRITISK!** (Lær hvordan du unngår kode-som-tekst feil)
 - [AI Architecture & Context](docs/ai/CONTEXT.md)
 - [Bubble Integration Guide](docs/ai/BUBBLE-CHECKLIST.md)
 
