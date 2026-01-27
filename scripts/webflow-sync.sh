@@ -109,7 +109,7 @@ echo "❌ Failed: $FAILED"
 echo "=============================="
 echo ""
 
-if [[ "$FAILED" -gt 0 ]]; then
+if [[ "${FAILED:-0}" -gt 0 ]] 2>/dev/null; then
   echo "⚠️  Some syncs failed - check error messages above"
   echo ""
   echo "Webflow Collection schema (from API):"
