@@ -11,6 +11,13 @@ else
   exit 1
 fi
 
+# Validate required vars
+if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_SECRET_KEY:-}" ]]; then
+  echo "❌ Missing SUPABASE_URL or SUPABASE_SECRET_KEY in .env"
+  echo "Run: make bootstrap"
+  exit 1
+fi
+
 echo "🌱 Seeding paper trading signals..."
 echo "================================="
 echo ""
