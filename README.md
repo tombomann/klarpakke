@@ -9,6 +9,7 @@
 ## 📚 Documentation
 
 - **[AI Model Playbook](docs/ai/MODEL-PLAYBOOK.md)** (Hvilken AI-modell til hva?)
+- **[Design System](docs/DESIGN.md)** (Farger, typografi, trafikklys, sider, pricing)
 - **[Webflow Manual Guide](docs/WEBFLOW-MANUAL.md)** 👈 **KRITISK!** (Lær hvordan du unngår kode-som-tekst feil)
 - [AI Architecture & Context](docs/ai/CONTEXT.md)
 - [Bubble Integration Guide](docs/ai/BUBBLE-CHECKLIST.md)
