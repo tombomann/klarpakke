@@ -51,8 +51,20 @@ if [[ ! -f .env ]]; then
     exit 1
 fi
 
-# Source .env and extract secrets
+# Source .env with safe defaults
+set +u  # Temporarily disable unbound variable check
 source .env
+set -u  # Re-enable
+
+# Define secrets with safe defaults
+SUPABASE_ACCESS_TOKEN="${SUPABASE_ACCESS_TOKEN:-}"
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-}"
+SUPABASE_URL="${SUPABASE_URL:-}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+SUPABASE_SECRET_KEY="${SUPABASE_SECRET_KEY:-}"
+WEBFLOW_API_TOKEN="${WEBFLOW_API_TOKEN:-}"
+WEBFLOW_SITE_ID="${WEBFLOW_SITE_ID:-}"
+PPLX_API_KEY="${PPLX_API_KEY:-}"
 
 # Secrets to sync
 declare -A SECRETS=(
