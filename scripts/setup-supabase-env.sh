@@ -26,19 +26,51 @@ fi
 echo "✓ Supabase CLI funnet: $(supabase --version)"
 echo ""
 
+# Load existing .env if present
+EXISTING_TOKEN=""
+if [[ -f .env ]]; then
+  echo "📁 Fant eksisterende .env-fil"
+  set +e
+  EXISTING_TOKEN=$(grep SUPABASE_ACCESS_TOKEN .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
+  set -e
+  
+  if [[ -n "$EXISTING_TOKEN" && "$EXISTING_TOKEN" =~ ^sbp_ ]]; then
+    echo "✓ Fant gyldig Access Token i .env"
+    echo ""
+  fi
+fi
+
 # Step 1: Login
 echo "📝 Steg 1: Login til Supabase"
 echo "-----------------------------"
-echo "Dette vil åpne nettleseren for innlogging."
-echo "Om du allerede har en Access Token, kan du paste den direkte."
-echo ""
-read -p "Trykk Enter for å fortsette..."
 
-if ! supabase login; then
+if [[ -n "$EXISTING_TOKEN" && "$EXISTING_TOKEN" =~ ^sbp_ ]]; then
+  echo "Bruker eksisterende token fra .env..."
+  if supabase login --token "$EXISTING_TOKEN" 2>/dev/null; then
+    echo "✓ Logget inn med eksisterende token!"
+  else
+    echo "⚠️  Eksisterende token fungerte ikke, prøver interaktiv login..."
+    EXISTING_TOKEN=""
+  fi
+fi
+
+if [[ -z "$EXISTING_TOKEN" ]]; then
+  echo "Dette vil åpne nettleseren for innlogging."
+  echo "Om du allerede har en Access Token, kan du paste den direkte."
   echo ""
-  echo "❌ Login feilet. Prøv igjen eller lag Access Token manuelt:"
-  echo "   https://supabase.com/dashboard/account/tokens"
-  exit 1
+  read -p "Trykk Enter for å fortsette..."
+
+  if ! supabase login; then
+    echo ""
+    echo "❌ Login feilet. Prøv igjen eller lag Access Token manuelt:"
+    echo "   https://supabase.com/dashboard/account/tokens"
+    echo ""
+    echo "Når du har token (starter med sbp_...), legg den til i .env:"
+    echo "   echo 'SUPABASE_ACCESS_TOKEN=sbp_...' >> .env"
+    echo ""
+    echo "Kjør så dette scriptet igjen."
+    exit 1
+  fi
 fi
 
 echo ""
@@ -115,15 +147,20 @@ echo ""
 echo "🎫 Steg 5: Henter Access Token..."
 echo "---------------------------------"
 
-ACCESS_TOKEN=""
-if [[ -f ~/.supabase/access-token ]]; then
-  ACCESS_TOKEN=$(cat ~/.supabase/access-token)
-  echo "✓ Fant Access Token fra CLI: ${ACCESS_TOKEN:0:10}..."
+ACCESS_TOKEN="$EXISTING_TOKEN"
+
+if [[ -z "$ACCESS_TOKEN" ]]; then
+  if [[ -f ~/.supabase/access-token ]]; then
+    ACCESS_TOKEN=$(cat ~/.supabase/access-token)
+    echo "✓ Fant Access Token fra CLI: ${ACCESS_TOKEN:0:10}..."
+  else
+    echo "⚠️  Access Token ikke funnet lokalt."
+    echo ""
+    echo "Hent den fra: https://supabase.com/dashboard/account/tokens"
+    read -p "Paste Access Token (starter med sbp_...): " ACCESS_TOKEN
+  fi
 else
-  echo "⚠️  Access Token ikke funnet lokalt."
-  echo ""
-  echo "Hent den fra: https://supabase.com/dashboard/account/tokens"
-  read -p "Paste Access Token (starter med sbp_...): " ACCESS_TOKEN
+  echo "✓ Bruker Access Token fra .env: ${ACCESS_TOKEN:0:10}..."
 fi
 
 echo ""
@@ -213,11 +250,7 @@ echo "1. Test lokal deploy:"
 echo "   npm run ci:all"
 echo ""
 echo "2. Oppdater GitHub Secrets:"
-echo "   gh secret set SUPABASE_PROJECT_REF -b \"$SUPABASE_PROJECT_REF\""
-echo "   gh secret set SUPABASE_URL -b \"$SUPABASE_URL\""
-echo "   gh secret set SUPABASE_ANON_KEY -b \"$SUPABASE_ANON_KEY\""
-echo "   gh secret set SUPABASE_SERVICE_ROLE_KEY -b \"$SUPABASE_SERVICE_ROLE_KEY\""
-echo "   gh secret set SUPABASE_ACCESS_TOKEN -b \"$SUPABASE_ACCESS_TOKEN\""
+echo "   bash scripts/sync-github-secrets.sh"
 echo ""
 echo "3. Trigger CI/CD pipeline:"
 echo "   gh workflow run '🚀 Auto-Deploy Pipeline' --ref main -f environment=staging"
