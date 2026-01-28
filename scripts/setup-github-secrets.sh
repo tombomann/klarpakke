@@ -1,85 +1,82 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-echo "════════════════════════════════════════════════════════════════"
-echo "🔐 GITHUB SECRETS SETUP (replacing .env)"
-echo "════════════════════════════════════════════════════════════════"
-echo ""
-echo "This will migrate secrets from .env.migration to GitHub Secrets"
-echo "Requires: gh CLI (brew install gh)"
+# Auto-setup GitHub Secrets from .env
+# Requires: GitHub CLI (gh)
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
+cd "$ROOT_DIR"
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}🔑 Setting up GitHub Secrets${NC}"
 echo ""
 
-# Check gh CLI
+# Check if gh CLI is installed
 if ! command -v gh &> /dev/null; then
-    echo "❌ gh CLI not found!"
+    echo -e "${RED}❌ GitHub CLI not found${NC}"
     echo ""
-    echo "Install with:"
-    echo "  brew install gh"
+    echo "Install it:"
+    echo "  macOS: brew install gh"
+    echo "  Linux: https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
     echo ""
     exit 1
 fi
 
-# Check authentication
+# Check if authenticated
 if ! gh auth status &> /dev/null; then
-    echo "❌ Not authenticated with GitHub!"
+    echo -e "${YELLOW}⚠️  Not authenticated with GitHub${NC}"
     echo ""
     echo "Run: gh auth login"
     echo ""
     exit 1
 fi
 
-echo "✅ gh CLI found and authenticated"
-echo ""
-
-# Load .env.migration
-if [ ! -f .env.migration ]; then
-    echo "❌ .env.migration not found!"
-    echo ""
-    echo "Create it first with your secrets"
+# Load .env
+if [[ ! -f .env ]]; then
+    echo -e "${RED}❌ .env file not found${NC}"
     exit 1
 fi
 
-source .env.migration
+source .env
 
-echo "📤 Uploading secrets to GitHub..."
+# Secrets to sync
+declare -A SECRETS=(
+    ["SUPABASE_ACCESS_TOKEN"]="$SUPABASE_ACCESS_TOKEN"
+    ["SUPABASE_PROJECT_REF"]="$SUPABASE_PROJECT_REF"
+    ["SUPABASE_URL"]="$SUPABASE_URL"
+    ["SUPABASE_ANON_KEY"]="$SUPABASE_ANON_KEY"
+    ["WEBFLOW_API_TOKEN"]="$WEBFLOW_API_TOKEN"
+    ["WEBFLOW_SITE_ID"]="$WEBFLOW_SITE_ID"
+    ["PPLX_API_KEY"]="$PPLX_API_KEY"
+)
+
+echo "Setting secrets for repository: tombomann/klarpakke"
 echo ""
 
-# Upload each secret
-gh secret set SUPABASE_PROJECT_ID --body "$SUPABASE_PROJECT_ID" && echo "  ✅ SUPABASE_PROJECT_ID"
-gh secret set SUPABASE_SERVICE_ROLE_KEY --body "$SUPABASE_SERVICE_ROLE_KEY" && echo "  ✅ SUPABASE_SERVICE_ROLE_KEY"
-gh secret set SUPABASE_DB_URL --body "$SUPABASE_DB_URL" && echo "  ✅ SUPABASE_DB_URL"
+for SECRET_NAME in "${!SECRETS[@]}"; do
+    SECRET_VALUE="${SECRETS[$SECRET_NAME]}"
+    
+    if [[ -z "$SECRET_VALUE" ]]; then
+        echo -e "${YELLOW}⚠️  Skipping ${SECRET_NAME} (empty)${NC}"
+        continue
+    fi
+    
+    echo -n "Setting ${SECRET_NAME}... "
+    
+    if echo "$SECRET_VALUE" | gh secret set "$SECRET_NAME" --repo tombomann/klarpakke; then
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗${NC}"
+    fi
+done
 
-# Optional: Binance keys (if they exist)
-if [ -n "${BINANCE_API_KEY:-}" ]; then
-    gh secret set BINANCE_API_KEY --body "$BINANCE_API_KEY" && echo "  ✅ BINANCE_API_KEY"
-fi
-
-if [ -n "${BINANCE_SECRET_KEY:-}" ]; then
-    gh secret set BINANCE_SECRET_KEY --body "$BINANCE_SECRET_KEY" && echo "  ✅ BINANCE_SECRET_KEY"
-fi
-
 echo ""
-echo "════════════════════════════════════════════════════════════════"
-echo "✅ ALL SECRETS UPLOADED TO GITHUB!"
-echo "════════════════════════════════════════════════════════════════"
+echo -e "${GREEN}✅ Done!${NC}"
 echo ""
-echo "🔒 Security improvements:"
-echo "  ✅ No more .env files in repo"
-echo "  ✅ Secrets encrypted by GitHub"
-echo "  ✅ Audit trail of secret access"
-echo "  ✅ Auto-available in GitHub Actions"
-echo ""
-echo "📝 Next steps:"
-echo ""
-echo "1. Delete .env.migration (recommended):"
-echo "   rm .env.migration"
-echo ""
-echo "2. Add to .gitignore (if not already):"
-echo "   echo '.env*' >> .gitignore"
-echo ""
-echo "3. Update workflows to use:"
-echo "   \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-echo ""
-echo "4. View secrets:"
-echo "   gh secret list"
-echo ""
+echo "Verify at:"
+echo "  https://github.com/tombomann/klarpakke/settings/secrets/actions"
