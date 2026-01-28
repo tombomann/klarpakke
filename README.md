@@ -6,6 +6,60 @@
 
 ---
 
+## 🚀 FULL CI/CD AUTOMATION (NEW!)
+
+**Status:** ✅ Production-ready GitHub Actions + Supabase CLI + Webflow integration
+
+### Quick Setup
+
+1. **Verify GitHub Secrets** (Settings → Secrets):
+   ```
+   ✅ SUPABASE_ACCESS_TOKEN
+   ✅ SUPABASE_PROJECT_REF
+   ✅ SUPABASE_URL
+   ✅ SUPABASE_ANON_KEY
+   ```
+
+2. **Push to `main`** → Pipeline runs automatically:
+   ```
+   Stage 1: Lint & Build (minify JS)
+      ↓
+   Stage 2: Supabase Deploy (migrations + Edge Functions)
+      ↓
+   Stage 3: Webflow Setup (generate loader with config)
+      ↓
+   Stage 4: Health Check (verify connectivity)
+      ↓
+   Stage 5: Deploy to Staging (auto)
+      ↓
+   Stage 6: Deploy to Production (manual approval)
+   ```
+
+3. **Webflow Footer** (one-time setup):
+   ```html
+   <script src="https://cdn.jsdelivr.net/gh/tombomann/klarpakke@{COMMIT_SHA}/web/dist/webflow-loader.js"></script>
+   ```
+
+📖 **[Full Automation Guide →](.github/AUTOMATION-SETUP.md)**
+
+### Available npm Scripts
+
+```bash
+# Build web assets (minify JS)
+npm run build:web
+
+# Generate Webflow loader with runtime config
+npm run deploy:webflow
+
+# Deploy backend
+npm run deploy:backend
+
+# Full CI chain (all three above)
+npm run ci:all
+```
+
+---
+
 ## 🚀 ONE-CLICK (Supabase-first)
 
 Backend er Supabase CLI‑drevet (migrations + Edge Functions + secrets) og kan deployes i én kommando. 
@@ -54,7 +108,8 @@ bash scripts/deploy-backend.sh
 
 ## 📚 Documentation
 
-- **[One-Click Deploy Guide](docs/ONE-CLICK-DEPLOY.md)** 👈 **START HERE!**
+- **[Automation Setup Guide](.github/AUTOMATION-SETUP.md)** 🟢 **New! Start here for CI/CD**
+- **[One-Click Deploy Guide](docs/ONE-CLICK-DEPLOY.md)** 👈 **Local dev!**
 - **[Production Automation Plan](docs/PRODUCTION-PLAN.md)** 🚀 **20-30h roadmap for full 1-click**
 - **[Design System](docs/DESIGN.md)** (Farger, typografi, trafikklys, sider, pricing)
 - **[Copy (Microcopy)](docs/COPY.md)** (Alle tekster til Webflow)
@@ -104,17 +159,27 @@ bash scripts/deploy-backend.sh
 
 ## 🔄 GitHub Actions (CI/CD)
 
-**Canonical deploy workflow:** `.github/workflows/supabase-backend-deploy.yml` (manual `workflow_dispatch`).
+**✅ NEW WORKFLOW:** `.github/workflows/auto-deploy.yml` – Full stack automation
 
-Legacy deploy-workflows (`deploy*.yml`, `one-click-deploy.yml`, `full-stack-deploy.yml`) er markert som "Deprecated" for å unngå dobbel deploy. 
+**Features:**
+- ✅ Automatic lint + build on push to main
+- ✅ Supabase migrations + Edge Functions deploy
+- ✅ Webflow loader generation with runtime config
+- ✅ Health checks (connectivity, syntax)
+- ✅ Automatic staging deployment
+- ✅ Manual approval gate for production
+- ✅ Automatic release creation
+
+**Legacy workflows** (marked deprecated):
+- `deploy*.yml`, `one-click-deploy.yml`, `full-stack-deploy.yml`
 
 **Required GitHub Secrets:**
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_PROJECT_REF`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `PPLX_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (optional)
+- `PPLX_API_KEY` (optional)
 
 ---
 
@@ -143,24 +208,18 @@ Legacy deploy-workflows (`deploy*.yml`, `one-click-deploy.yml`, `full-stack-depl
 
 ### Setup (One-Time)
 
-1. **Webflow Project Settings → Custom Code → Footer (Before `</body>`)**
-   - Kopier innhold fra `web/snippets/webflow-footer-loader.html`
-   - Oppdater `PROJECT_REF` og `SUPABASE_ANON_KEY` med riktige verdier fra `.env`
+1. **After first CI/CD run**, download webflow-loader artifact
+2. **Webflow Project Settings → Custom Code → Footer**:
+   ```html
+   <script src="https://cdn.jsdelivr.net/gh/tombomann/klarpakke@{COMMIT_SHA}/web/dist/webflow-loader.js"></script>
+   ```
+3. **Publish** – loader will inject config + load scripts automatically
 
-2. **Webflow Pages (Structure)**
-   - Lag sider per rute: `/opplaering`, `/risiko`, `/ressurser`, `/pricing`, `/kalkulator`
-   - Lag app-mappe: `/app/dashboard`, `/app/settings`, `/app/pricing`
-   - Bruk IDs fra checklisten over
+### After Deploy
 
-3. **Design Tokens**
-   - Hent farger/typografi fra `docs/DESIGN.md`
-   - Bruk trafikklys kun for risiko-status (grønn/gul/rød/sort)
-
-### Etter Deploy
-
-- Hard refresh (`Cmd+Shift+R`) og åpne DevTools Console
-- Sjekk for "[Klarpakke]" logger-meldinger
-- Hvis elements mangler: logger vil vise "No #signals-container found on page"
+- Hard refresh (`Cmd+Shift+R`) and open DevTools Console
+- Check for "[Klarpakke]" logger messages
+- Missing elements will be logged as warnings
 
 ---
 
@@ -172,21 +231,24 @@ Legacy deploy-workflows (`deploy*.yml`, `one-click-deploy.yml`, `full-stack-depl
 
 | # | Task | Est. Time | Priority |
 |---|------|-----------|----------|
-| 1 | Standardiser `.env` + GitHub Secrets | 0.5–1h | 🔴 P0 |
-| 2 | Supabase backend "one-click" fra CI | 1–2h | 🔴 P0 |
-| 3 | Lokal `npm run one:click` test | 1h | 🔴 P0 |
-| 4 | Webflow-loader som single source of truth | 1–2h | 🔴 P0 |
-| 5 | Build-steg for bundlet JS | 2–4h | 🟠 P1 |
+| 1 | ✅ GitHub Actions workflow | 1–2h | 🔴 P0 |
+| 2 | ✅ Build scripts + web minification | 1–2h | 🔴 P0 |
+| 3 | ✅ Webflow loader generator | 1–2h | 🔴 P0 |
+| 4 | ✅ Supabase CLI integration | 1–2h | 🔴 P0 |
+| 5 | Staging/prod environment gating | 2–4h | 🟠 P1 |
 | 6 | Kartlegg sider/ruter/IDs | 1–2h | 🟠 P1 |
 | 7 | Webflow build checklist | 1–2h | 🟠 P1 |
 | 8 | Done Definition per side | 2–3h | 🟠 P1 |
 | 9 | Robusthet i `klarpakke-site.js` | 2–3h | 🟠 P1 |
 | 10 | Logging + feilhåndtering | 1–2h | 🟠 P1 |
-| 11 | Konfig via meta/body data | 1–2h | 🟡 P2 |
-| 12 | Script for auto-generering av loader | 1–2h | 🟡 P2 |
-| 13 | Staging/prod miljøkabling | 2–4h | 🟡 P2 |
-| 14 | Auto sanity-check post-deploy | 1–2h | 🟡 P2 |
-| 15 | Dokumentasjonsrunde | 2h | 🟡 P2 |
+| 11 | Auto sanity-check post-deploy | 1–2h | 🟡 P2 |
+| 12 | Dokumentasjonsrunde | 2h | 🟡 P2 |
+
+**Completed:**
+- ✅ GitHub Actions auto-deploy workflow
+- ✅ Web build + minify scripts
+- ✅ Webflow loader generator
+- ✅ Supabase CLI deployment
 
 **Total:** ~20–30 timer, **3–5 arbeidsdager** for 1 senior dev.
 
@@ -195,32 +257,35 @@ Legacy deploy-workflows (`deploy*.yml`, `one-click-deploy.yml`, `full-stack-depl
 ## 🚨 Key Risks & Mitigation
 
 | Risk | Impact | Mitigation |
-|------|--------|-----------|
+|------|--------|------------|
 | Feil Webflow-struktur → scripts gjør ingenting | Medium | Tydelig checklist + self-test i `klarpakke-site.js` debug-mode |
 | Konfig-kaos (staging vs prod) | High | Separate `.env` + GitHub Secrets per miljø |
 | "Script som tekst" i Webflow | High | **Forby manuell JS; kun loader i Project Settings** |
 | Supabase-nøkler eksponert feil | Critical | Kun `ANON_KEY` i klienten, aldri `SERVICE_ROLE_KEY` |
 | Edge Functions endres uten frontend-update | Medium | Streng konvensjon + versjonering |
-| Supabase CLI mangler på CI-runner | Medium | Eksplisitt `brew install supabase/tap/supabase` step |
+| Supabase CLI mangler på CI-runner | Medium | Eksplisitt install step + cache |
 
 ---
 
 ## 📦 Staging → Prod Publishing
 
 1. **Staging-runde**
-   - Run: `npm run deploy:backend` mot staging Supabase
-   - Webflow: oppdater loader + sider, publiser til staging-domene
+   - Pipeline auto-deploys to staging on push to main
+   - Download webflow-loader artifact
+   - Update staging Webflow site + publish
    - QA: test kalkulator, pricing-routing, dashboard, settings
 
 2. **Prod-runde**
-   - Trigger GitHub Action `supabase-backend-deploy.yml` med `environment=prod`
-   - Webflow: publiser til prod-domene
-   - Sanity-check: `debug-env` + live side-test
+   - Review deployed code
+   - Go to **Actions → Auto-Deploy Pipeline → Latest run**
+   - Find **deploy-production** job
+   - Click **Review deployments → Approve**
+   - Production deploy starts automatically
 
 3. **Post-deploy**
    - Sett `config.debug=false` (default)
    - `localStorage.getItem('klarpakke_debug')=1` override for internt testing
-   - Lag rollback-runbook (forrige Supabase migration tag)
+   - Lag rollback-runbook (previous Supabase migration tag)
 
 ---
 
@@ -252,20 +317,32 @@ Se [`docs/PRODUCTION-PLAN.md`](docs/PRODUCTION-PLAN.md) for full detaljer.
 
 ## 🆘 Troubleshooting
 
-### Edge Functions not responding
+### CI/CD Pipeline Issues
+
+**Check pipeline status:**
+- Go to **Actions** tab → **Auto-Deploy Pipeline** → Latest run
+- Click any failed job for detailed logs
+
+**Missing secrets:**
+- Go to **Settings → Secrets and variables → Actions**
+- Verify: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+
+**Webflow loader not loading:**
+1. Open DevTools → Console
+2. Check for `[Klarpakke]` logger output
+3. Verify CDN URL is correct (commit SHA matches)
+4. Hard refresh (`Cmd+Shift+R`)
+
+### Backend Issues
+
+**Edge Functions not responding**
 ```bash
 supabase functions list
 supabase functions logs generate-trading-signal
 supabase functions deploy generate-trading-signal --no-verify-jwt
 ```
 
-### Webflow scripts not loading
-1. Åpne DevTools → Console
-2. Sjekk for `[Klarpakke]` logger-output
-3. Verifiser at meta-tags eller body-dataset har `supabase-url` + `supabase-anon-key`
-4. Hard refresh (`Cmd+Shift+R`)
-
-### Missing environment variables
+**Missing environment variables**
 ```bash
 export SUPABASE_PROJECT_REF=your_project_ref
 export SUPABASE_ACCESS_TOKEN=sbp_xxx
