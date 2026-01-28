@@ -1,11 +1,11 @@
-// Klarpakke Site Engine v2.2
+// Klarpakke Site Engine v2.3
 // Webflow master script (landing + app)
-// Key change: runtime config (no hardcoded Supabase URL/keys) + DOM-ready init
+// Updates: Robust path detection, DOM-ready retries, explicit error handling
 
 (function () {
   'use strict';
 
-  // Prevent double-execution (Webflow can re-run scripts on publish changes / embeds)
+  // 1. Prevent double-execution
   if (window.__KLARPAKKE_SITE_ENGINE__) return;
   window.__KLARPAKKE_SITE_ENGINE__ = true;
 
@@ -14,6 +14,7 @@
     fetchTimeoutMs: 15000,
   };
 
+  // 2. Configuration & Utilities
   function getMeta(name) {
     const el = document.querySelector(`meta[name="${name}"]`);
     return el ? el.getAttribute('content') : null;
@@ -21,26 +22,23 @@
 
   function getConfig() {
     const fromWindow = window.KLARPAKKE_CONFIG || window.klarpakkeConfig || {};
+    // Prioritize window config (injected by loader), then meta/body
     const fromMeta = {
       supabaseUrl: getMeta('klarpakke:supabase-url'),
       supabaseAnonKey: getMeta('klarpakke:supabase-anon-key'),
       debug: getMeta('klarpakke:debug'),
     };
-    const fromBody = document.body
-      ? {
-          supabaseUrl: document.body.dataset.supabaseUrl,
-          supabaseAnonKey: document.body.dataset.supabaseAnonKey,
-          debug: document.body.dataset.klarpakkeDebug,
-        }
-      : {};
+    
+    // Merge: Defaults -> Body/Meta -> Window (Loader)
+    const cfg = Object.assign({}, DEFAULTS, fromMeta, fromWindow);
 
-    const cfg = Object.assign({}, DEFAULTS, fromBody, fromMeta, fromWindow);
-
-    // Normalize
+    // Boolean normalization
     if (typeof cfg.debug === 'string') cfg.debug = cfg.debug === '1' || cfg.debug === 'true';
+    
+    // Normalize URL (strip trailing slash)
     if (cfg.supabaseUrl) cfg.supabaseUrl = String(cfg.supabaseUrl).replace(/\/$/, '');
 
-    // Local debug override
+    // LocalStorage override for testing
     try {
       if (localStorage.getItem('klarpakke_debug') === '1') cfg.debug = true;
     } catch (_) {}
@@ -51,178 +49,173 @@
   const config = getConfig();
 
   const logger = {
-    debug: (...args) => (config.debug ? console.debug('[Klarpakke]', ...args) : undefined),
-    info: (...args) => console.info('[Klarpakke]', ...args),
-    warn: (...args) => console.warn('[Klarpakke]', ...args),
-    error: (...args) => console.error('[Klarpakke]', ...args),
+    debug: (...args) => (config.debug ? console.debug('[Klarpakke 🐞]', ...args) : undefined),
+    info: (...args) => console.info('[Klarpakke ℹ️]', ...args),
+    warn: (...args) => console.warn('[Klarpakke ⚠️]', ...args),
+    error: (...args) => console.error('[Klarpakke ❌]', ...args),
   };
 
-  function toast(message, type) {
+  function toast(message, type = 'info') {
     const el = document.getElementById('kp-toast');
     if (!el) {
-      // Fallback (avoid alert spam unless really needed)
-      if (type === 'error') alert(message);
+      if (type === 'error' || config.debug) alert(`[${type.toUpperCase()}] ${message}`);
       return;
     }
     el.textContent = message;
     el.style.display = 'block';
-    el.setAttribute('data-type', type || 'info');
+    el.setAttribute('data-type', type);
+    el.classList.remove('hidden'); // Webflow utility class support
+    
+    // Auto-hide
     setTimeout(() => {
       el.style.display = 'none';
-    }, 3500);
+      el.classList.add('hidden');
+    }, type === 'error' ? 5000 : 3000);
   }
 
   function requireSupabaseConfig() {
     if (!config.supabaseUrl || !config.supabaseAnonKey) {
-      logger.warn(
-        'Missing Supabase runtime config. Provide via window.KLARPAKKE_CONFIG, <meta>, or <body data-*>.\n' +
-          'Expected: supabaseUrl + supabaseAnonKey.'
-      );
+      logger.error('Missing Supabase config. Check webflow-loader injection.');
+      if (config.debug) toast('Missing Supabase Config', 'error');
       return false;
     }
     return true;
   }
 
-  async function fetchJson(url, options) {
+  async function fetchJson(endpoint, options = {}) {
+    if (!requireSupabaseConfig()) throw new Error('Missing Config');
+
+    const url = `${config.supabaseUrl}${endpoint}`;
+    const method = options.method || 'GET';
+    
+    logger.debug(`Fetching: ${method} ${url}`);
+
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), config.fetchTimeoutMs || 15000);
+    const t = setTimeout(() => ctrl.abort(), config.fetchTimeoutMs);
 
     try {
-      const res = await fetch(url, Object.assign({}, options, { signal: ctrl.signal }));
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const headers = {
+        'apikey': config.supabaseAnonKey,
+        'Authorization': `Bearer ${config.supabaseAnonKey}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+
+      const res = await fetch(url, { ...options, headers, signal: ctrl.signal });
+      
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => res.statusText);
+        throw new Error(`API Error ${res.status}: ${errorText}`);
+      }
+      
       return await res.json();
+    } catch (err) {
+      logger.error('Fetch failed:', err);
+      throw err;
     } finally {
       clearTimeout(t);
     }
   }
 
-  function onReady(fn) {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', fn, { once: true });
-    } else {
-      fn();
-    }
+  // 3. Robust Path Detection
+  function getRoute() {
+    const raw = window.location.pathname.replace(/\/+$/, '') || '/';
+    return {
+      raw,
+      isDashboard: raw.endsWith('/dashboard'),
+      isSettings: raw.endsWith('/settings'),
+      isPricing: raw.endsWith('/pricing'),
+      isCalculator: raw.endsWith('/kalkulator') || raw.endsWith('/calculator'),
+    };
   }
 
-  const path = window.location.pathname || '/';
-  const isDashboard = path.includes('/dashboard');
-  const isSettings = path.includes('/settings');
-  const isPricing = path.includes('/pricing');
-  const isCalculator = path.includes('/kalkulator');
-
-  logger.info('Site engine v2.2 loaded');
-  logger.debug('Path:', path, 'Config:', { ...config, supabaseAnonKey: config.supabaseAnonKey ? '***' : null });
+  // 4. Element Safety Check
+  function checkRequiredElements(ids) {
+    const missing = ids.filter(id => !document.getElementById(id));
+    if (missing.length > 0) {
+      logger.warn(`Missing required DOM elements on this route: ${missing.join(', ')}`);
+      if (config.debug) toast(`Missing IDs: ${missing.join(', ')}`, 'error');
+      return false;
+    }
+    return true;
+  }
 
   // ═══════════════════════════════════════════════════════════
-  // DASHBOARD: Fetch + Display Signals
+  // MODULES
   // ═══════════════════════════════════════════════════════════
-  function initDashboard() {
-    logger.info('Dashboard mode');
+
+  async function initDashboard() {
+    logger.info('Initializing Dashboard...');
+    if (!checkRequiredElements(['signals-container'])) return;
 
     const container = document.getElementById('signals-container');
-    if (!container) {
-      logger.warn('No #signals-container found on page');
-      return;
-    }
 
     async function loadSignals() {
-      if (!requireSupabaseConfig()) {
-        container.innerHTML = '<p style="color:#b45309;">Dashboard er ikke konfigurert (mangler Supabase config).</p>';
-        return;
-      }
-
-      container.innerHTML = '<p>Laster signaler…</p>';
+      container.innerHTML = '<div class="kp-loader">Laster signaler...</div>'; // Use CSS loader if available
 
       try {
-        const url = `${config.supabaseUrl}/rest/v1/signals?select=*&status=eq.pending&order=created_at.desc&limit=20`;
-        const signals = await fetchJson(url, {
-          headers: {
-            apikey: config.supabaseAnonKey,
-            Authorization: `Bearer ${config.supabaseAnonKey}`,
-          },
-        });
-
-        logger.info('Loaded signals:', signals.length);
-
-        if (!Array.isArray(signals) || signals.length === 0) {
-          container.innerHTML = '<p>Ingen pending signals akkurat nå.</p>';
+        const signals = await fetchJson('/rest/v1/signals?select=*&status=eq.pending&order=created_at.desc&limit=20');
+        
+        if (!signals.length) {
+          container.innerHTML = '<div class="kp-empty">Ingen nye signaler akkurat nå. ☕</div>';
           return;
         }
 
-        container.innerHTML = signals
-          .map(
-            (signal) => `
-          <div class="signal-card" data-signal-id="${signal.id}">
-            <div class="signal-header">
-              <span class="symbol">${signal.symbol || ''}</span>
-              <span class="direction ${(signal.direction || '').toLowerCase()}">${signal.direction || ''}</span>
-            </div>
-            <div class="signal-body">
-              <p class="reason">${signal.reason || ''}</p>
-              <div class="meta">
-                <span>Confidence: ${signal.confidence != null ? Math.round(signal.confidence * 100) : 0}%</span>
-                <span>Model: ${signal.ai_model || 'unknown'}</span>
-              </div>
-            </div>
-            <div class="signal-actions">
-              <button class="btn-approve" data-action="approve" data-signal-id="${signal.id}">
-                Approve
-              </button>
-              <button class="btn-reject" data-action="reject" data-signal-id="${signal.id}">
-                Reject
-              </button>
-            </div>
-          </div>
-        `
-          )
-          .join('');
+        container.innerHTML = signals.map(renderSignalCard).join('');
+        logger.info(`Loaded ${signals.length} signals`);
+
       } catch (err) {
-        logger.error('Error loading signals:', err);
-        container.innerHTML = `<p style="color:#b91c1c;">Klarte ikke å laste signaler: ${err.message}</p>`;
+        container.innerHTML = `<div class="kp-error">Kunne ikke laste data. <button onclick="location.reload()">Prøv igjen</button></div>`;
+        toast('Feil ved lasting av signaler', 'error');
       }
     }
 
-    // Click delegation for approve/reject
-    document.addEventListener('click', async function (e) {
-      const btn = e.target.closest('[data-action]');
+    function renderSignalCard(s) {
+      const conf = s.confidence ? Math.round(s.confidence * 100) : 0;
+      return `
+        <div class="signal-card" id="signal-${s.id}">
+          <div class="signal-header">
+            <h3>${s.symbol} <span class="badge ${s.direction.toLowerCase()}">${s.direction}</span></h3>
+            <span class="confidence" title="AI Confidence">${conf}%</span>
+          </div>
+          <p>${s.reason}</p>
+          <div class="actions">
+            <button class="btn-approve" data-action="APPROVE" data-id="${s.id}">Approve</button>
+            <button class="btn-reject" data-action="REJECT" data-id="${s.id}">Reject</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Event Delegation (Scoped to container)
+    container.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-action]');
       if (!btn) return;
 
-      const action = btn.dataset.action;
-      const signalId = btn.dataset.signalId;
-      if (!action || !signalId) return;
-
-      if (!requireSupabaseConfig()) {
-        toast('Mangler Supabase config – kan ikke utføre handling.', 'error');
-        return;
-      }
-
-      logger.info(`${action} signal ${signalId}`);
-
+      const { action, id } = btn.dataset;
+      const card = document.getElementById(`signal-${id}`);
+      
+      // UI Optimistic Update
+      const originalText = btn.innerText;
       btn.disabled = true;
-      const originalText = btn.textContent;
-      btn.textContent = action === 'approve' ? 'Approving…' : 'Rejecting…';
+      btn.innerText = '⏳...';
 
       try {
-        const url = `${config.supabaseUrl}/functions/v1/approve-signal`;
-        const data = await fetchJson(url, {
+        await fetchJson('/functions/v1/approve-signal', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${config.supabaseAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ signal_id: signalId, action: String(action).toUpperCase() }),
+          body: JSON.stringify({ signal_id: id, action })
         });
 
-        logger.debug('Approve/reject response:', data);
-        btn.textContent = action === 'approve' ? 'Approved' : 'Rejected';
+        toast(`Signal ${action === 'APPROVE' ? 'godkjent' : 'avvist'}!`, 'success');
+        
+        // Remove card gracefully
+        if (card) {
+          card.style.opacity = '0.5';
+          setTimeout(() => card.remove(), 500);
+        }
 
-        setTimeout(() => {
-          const card = btn.closest('.signal-card');
-          if (card) card.remove();
-        }, 1200);
       } catch (err) {
-        logger.error('Approve/reject failed:', err);
-        btn.textContent = originalText;
+        btn.innerText = originalText;
         btn.disabled = false;
         toast(`Feil: ${err.message}`, 'error');
       }
@@ -231,88 +224,65 @@
     loadSignals();
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // SETTINGS: Plan Selection + Compounding Toggle
-  // ═══════════════════════════════════════════════════════════
   function initSettings() {
-    logger.info('Settings mode');
+    logger.info('Initializing Settings...');
+    if (!checkRequiredElements(['save-settings', 'plan-select'])) return;
 
-    const saveBtn = document.getElementById('save-settings');
-    if (!saveBtn) {
-      logger.warn('No #save-settings found');
-      return;
-    }
+    document.getElementById('save-settings').addEventListener('click', async () => {
+      const plan = document.getElementById('plan-select').value;
+      const compound = document.getElementById('compound-toggle')?.checked || false;
 
-    saveBtn.addEventListener('click', async function () {
-      const plan = document.getElementById('plan-select')?.value || null;
-      const compounding = !!document.getElementById('compound-toggle')?.checked;
-
-      logger.info('Save settings:', { plan, compounding });
-
-      // Best-effort backend call (function may not exist in all envs)
-      if (requireSupabaseConfig()) {
-        try {
-          const url = `${config.supabaseUrl}/functions/v1/update-user-settings`;
-          await fetchJson(url, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${config.supabaseAnonKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ user_id: 'demo-user', plan, compounding_enabled: compounding }),
-          });
-          toast('Settings saved', 'info');
-          return;
-        } catch (err) {
-          logger.warn('update-user-settings failed; falling back to localStorage:', err);
-        }
-      }
-
-      // Fallback
+      // Todo: Replace 'demo-user' with actual auth user when Auth implemented
       try {
-        localStorage.setItem('klarpakke_plan', plan || '');
-        localStorage.setItem('klarpakke_compounding', compounding ? '1' : '0');
-      } catch (_) {}
-      toast('Settings saved (local)', 'info');
+        await fetchJson('/functions/v1/update-user-settings', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: 'demo-user', plan, compounding_enabled: compound })
+        });
+        toast('Innstillinger lagret ✅', 'success');
+      } catch (err) {
+        // Fallback to local storage if offline/no-auth
+        localStorage.setItem('kp_settings', JSON.stringify({ plan, compound }));
+        toast('Lagret lokalt (frakoblet)', 'warning');
+      }
     });
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // PRICING: Plan Selection (EXTREM requires quiz)
-  // ═══════════════════════════════════════════════════════════
   function initPricing() {
-    logger.info('Pricing mode');
+    logger.info('Initializing Pricing logic...');
+    // Listen to all clicks, check for data-plan attribute
+    document.body.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-plan]');
+      if (!target) return;
 
-    document.addEventListener('click', function (e) {
-      const btn = e.target.closest('[data-plan]');
-      if (!btn) return;
-
-      const plan = btn.dataset.plan;
-      if (!plan) return;
-
-      logger.info('Selected plan:', plan);
-
+      const plan = target.dataset.plan;
       if (plan === 'extrem') {
-        window.location.href = '/opplaering?quiz=extrem';
+        location.href = '/opplaering?quiz=start';
       } else {
-        window.location.href = '/app/settings?plan=' + encodeURIComponent(plan);
+        location.href = `/app/settings?plan=${plan}`;
       }
     });
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CALCULATOR: handled by separate calculator.js
+  // INIT
   // ═══════════════════════════════════════════════════════════
-  function initCalculator() {
-    logger.info('Calculator mode (separate script handles logic)');
+
+  function boot() {
+    const route = getRoute();
+    logger.info(`Booting on route: ${route.raw}`);
+    logger.debug('Config loaded:', config);
+
+    if (route.isDashboard) initDashboard();
+    else if (route.isSettings) initSettings();
+    else if (route.isPricing) initPricing();
+    
+    // Calculator is handled by calculator.js (loaded in parallel)
   }
 
-  onReady(function () {
-    if (isDashboard) initDashboard();
-    if (isSettings) initSettings();
-    if (isPricing) initPricing();
-    if (isCalculator) initCalculator();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 
-    logger.info('Site engine ready');
-  });
 })();
