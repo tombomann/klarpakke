@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Deploy Supabase backend (remote): migrations + secrets + edge functions + basic verify
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.."; pwd)"
 cd "$ROOT_DIR"
 
 # Load .env if present (local usage). In CI, prefer environment variables.
@@ -35,48 +35,50 @@ fi
 echo "[deploy-backend] Linking project: ${PROJECT_REF}"
 supabase link --project-ref "$PROJECT_REF"
 
-# Apply migrations
+# Apply migrations (use 'db push' to deploy migrations to remote)
 if [[ -d supabase/migrations ]]; then
   echo "[deploy-backend] Deploying database migrations…"
-  supabase db deploy
+  # Use --linked flag to deploy to the linked project
+  supabase db push --linked
 else
-  echo "[deploy-backend] WARN: supabase/migrations not found; skipping db deploy."
+  echo "[deploy-backend] WARN: supabase/migrations not found; skipping db push."
 fi
 
-# Sync secrets
-# Keep this intentionally minimal; do NOT dump all .env vars into Supabase.
+# Sync secrets for Edge Functions
+# NOTE: Do NOT include SUPABASE_* vars - those are auto-injected by runtime
+# Only include custom secrets needed by your Edge Functions
 TMP_ENV_FILE="$(mktemp)"
 cleanup() { rm -f "$TMP_ENV_FILE"; }
 trap cleanup EXIT
 
-# Map legacy/alternative names safely.
-# Prefer SUPABASE_SERVICE_ROLE_KEY; accept SUPABASE_SECRET_KEY as fallback.
-if [[ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
-  echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" >> "$TMP_ENV_FILE"
-elif [[ -n "${SUPABASE_SECRET_KEY:-}" ]]; then
-  echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SECRET_KEY}" >> "$TMP_ENV_FILE"
-fi
-
-[[ -n "${SUPABASE_URL:-}" ]] && echo "SUPABASE_URL=${SUPABASE_URL}" >> "$TMP_ENV_FILE"
-[[ -n "${SUPABASE_ANON_KEY:-}" ]] && echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" >> "$TMP_ENV_FILE"
+# Add custom API keys and secrets (NOT SUPABASE_* vars)
 [[ -n "${PPLX_API_KEY:-}" ]] && echo "PPLX_API_KEY=${PPLX_API_KEY}" >> "$TMP_ENV_FILE"
+[[ -n "${STRIPE_SECRET_KEY:-}" ]] && echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" >> "$TMP_ENV_FILE"
+[[ -n "${WEBFLOW_API_TOKEN:-}" ]] && echo "WEBFLOW_API_TOKEN=${WEBFLOW_API_TOKEN}" >> "$TMP_ENV_FILE"
+[[ -n "${MAKE_API_TOKEN:-}" ]] && echo "MAKE_API_TOKEN=${MAKE_API_TOKEN}" >> "$TMP_ENV_FILE"
 
 if [[ -s "$TMP_ENV_FILE" ]]; then
-  echo "[deploy-backend] Setting Supabase secrets…"
+  echo "[deploy-backend] Setting Edge Function secrets…"
   supabase secrets set --env-file "$TMP_ENV_FILE"
 else
-  echo "[deploy-backend] WARN: No secrets found to set (continuing)."
+  echo "[deploy-backend] WARN: No custom secrets found to set (continuing)."
 fi
 
-# Deploy functions
+# Deploy Edge Functions
+echo "[deploy-backend] Deploying Edge Functions…"
 bash scripts/deploy-functions.sh
 
 # Verify (best-effort)
 if [[ -n "${SUPABASE_URL:-}" ]]; then
-  echo "[deploy-backend] Verifying debug-env…"
-  curl -fsS "${SUPABASE_URL%/}/functions/v1/debug-env" >/dev/null || echo "[deploy-backend] WARN: debug-env verify failed (continuing)."
+  echo "[deploy-backend] Verifying API endpoint…"
+  # Simple connectivity check
+  if curl -fsS "${SUPABASE_URL%/}/rest/v1/" -H "apikey: ${SUPABASE_ANON_KEY}" >/dev/null 2>&1; then
+    echo "[deploy-backend] ✓ API endpoint responding"
+  else
+    echo "[deploy-backend] WARN: API verify failed (may be RLS policy - continuing)."
+  fi
 else
   echo "[deploy-backend] WARN: SUPABASE_URL not set; skipping verify."
 fi
 
-echo "[deploy-backend] Done."
+echo "[deploy-backend] ✓ Done."
