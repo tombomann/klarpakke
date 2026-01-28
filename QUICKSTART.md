@@ -1,295 +1,230 @@
-# 🚀 Klarpakke Quickstart
+# 🚀 Klarpakke Quick Start
 
-**Deploy entire stack in 10 minutes**
+**Mål:** Få full CI/CD pipeline kjørende på 5 minutter.
 
 ---
 
-## 🎯 One-Command Deployment
+## Forutsetninger
 
 ```bash
-cd ~/klarpakke && \
-git pull origin main && \
-chmod +x scripts/complete-deployment.sh && \
-bash scripts/complete-deployment.sh
-```
+# 1. Node.js (v18+)
+node --version
 
-**What happens:**
-1. Fixes Webflow field mapping (`reasoning` → `reason`)
-2. Generates 3-5 demo signals in Supabase
-3. Tests single signal sync to Webflow
-4. Syncs all signals to Webflow CMS
-5. Deploys Webflow UI (interactive guide)
-6. Verifies deployment
+# 2. Supabase CLI
+supabase --version
+# Installer om mangler: npm install -g supabase
 
-**Time:** ~10 minutes (5 min automated + 5 min Webflow UI paste)
-
----
-
-## 📊 What Gets Deployed
-
-### Backend (Supabase)
-- ✅ PostgreSQL database (4 tables)
-- ✅ Edge Functions (6 functions)
-- ✅ REST API endpoints
-- ✅ RLS security policies
-
-### Automation (GitHub Actions)
-- ✅ Webflow sync (every 5 minutes)
-- ✅ Deploy & test (on push to main)
-
-### Frontend (Webflow)
-- ✅ CMS Collection (signals)
-- ✅ UI JavaScript (2.5 KB)
-- ✅ Password protection
-- ✅ Approve/reject buttons
-
----
-
-## 🛠️ Prerequisites
-
-### 1. Supabase Project
-- ✅ Project created: `swfyuwkptusceiouqlks`
-- ✅ API keys in `.env`
-- ✅ Tables deployed (via DEPLOY-NOW.sql)
-
-### 2. Webflow Site
-- ✅ Site created: `klarpakke-c65071.webflow.io`
-- ✅ CMS Collection created: "Signals"
-- ✅ API token generated
-
-### 3. GitHub Repository
-- ✅ Repo cloned locally
-- ✅ Secrets configured (via one-click-install.sh)
-
-**Already done?** Run quickstart above! ⬆️
-
-**Starting fresh?** Run this first:
-```bash
-cd ~/klarpakke
-bash scripts/one-click-install.sh
+# 3. GitHub CLI
+gh --version
+# Installer om mangler: brew install gh
 ```
 
 ---
 
-## 💡 How It Works
+## ⚡ 3-Stegs Setup
 
-### Signal Flow
-```
-1. Generate Signal (Supabase Edge Function)
-   ↓
-2. Store in Database (signals table)
-   ↓
-3. Sync to Webflow CMS (GitHub Actions every 5 min)
-   ↓
-4. Display in UI (Webflow Custom Code)
-   ↓
-5. User Approves/Rejects (JavaScript → Edge Function)
-   ↓
-6. Update Status (Supabase + Webflow)
+### Steg 1: Klon og installer
+
+```bash
+# Klon repo
+git clone https://github.com/tombomann/klarpakke.git
+cd klarpakke
+
+# Installer dependencies
+npm install
 ```
 
-### Field Mapping
-```
-Supabase Table       →  Webflow CMS
--------------------     -------------------
-symbol (text)        →  symbol (PlainText)
-direction (text)     →  direction (PlainText)
-confidence (numeric) →  confidence (Number)
-reasoning (text)     →  reason (PlainText)
-status (text)        →  status (PlainText)
-+ auto-generated     →  name (PlainText)
-+ auto-generated     →  slug (PlainText)
+### Steg 2: Konfigurer Supabase (Interaktivt)
+
+```bash
+# Kjør interaktivt setup-script
+bash scripts/setup-supabase-env.sh
 ```
 
-**Key Fix:** `reasoning` → `reason` (field name mismatch)
+**Dette scriptet vil:**
+1. Logge deg inn på Supabase (via browser)
+2. Liste alle prosjektene dine
+3. La deg velge riktig prosjekt
+4. Automatisk hente alle API-nøkler
+5. Verifisere at alt er korrekt format
+6. Opprette `.env` med alle nødvendige verdier
+
+**Output:** `.env` fil med:
+- `SUPABASE_PROJECT_REF` (20-tegns ID)
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ACCESS_TOKEN`
 
 ---
 
-## 🧪 Testing
+### Steg 3: Sync til GitHub Secrets
 
-### After Deployment
-
-#### 1. Test Webflow CMS Sync
 ```bash
-# Generate demo signals
-make paper-seed
+# Autentiser GitHub CLI (om ikke allereie gjort)
+gh auth login
 
-# Wait 5 minutes for auto-sync
-# OR run manual sync:
-bash scripts/webflow-sync.sh
-
-# Check Webflow CMS:
-open https://webflow.com/dashboard/sites/69743573d50cc16bbbe54344/collections/6978258967f5139c7426902d
+# Sync alle verdier til GitHub Secrets
+bash scripts/sync-github-secrets.sh
 ```
 
-#### 2. Test Webflow UI
+**Dette scriptet vil:**
+- Lese `.env`
+- Validere alle verdier
+- Sette GitHub Secrets automatisk
+- Verifisere at synkronisering fungerte
+
+---
+
+## ✅ Verifiser Setup
+
+### Test 1: Lokal Build
+
 ```bash
-# Open dashboard
-open https://klarpakke-c65071.webflow.io/app/dashboard
+# Test full build chain
+npm run ci:all
 
-# Enter password: tom
-
-# Open Console (F12)
-# Look for: [Klarpakke] UI script loaded
-
-# Click 'Approve' button
-# Expected: [Klarpakke] Success: {signal_id: "...", status: "approved"}
+# Forventa output:
+# ✓ build:web (minify JS)
+# ✓ deploy:webflow (generate loader)
+# ✓ deploy:backend (migrations + functions)
 ```
 
-#### 3. Test Edge Functions
+### Test 2: Trigger CI/CD Pipeline
+
 ```bash
-# Test generate-trading-signal
-supabase functions invoke generate-trading-signal \
-  --data '{"symbol":"BTC","timeframe":"1h"}'
+# Trigger staging deploy
+gh workflow run '🚀 Auto-Deploy Pipeline' --ref main -f environment=staging
 
-# Expected:
-# {"signal_id": "...", "symbol": "BTC", "direction": "BUY", ...}
+# Se status live
+gh run watch
 
-# Check logs
-make edge-logs
+# ELLER list runs
+gh run list --workflow auto-deploy.yml --limit 3
 ```
+
+### Test 3: Verifiser GitHub Secrets
+
+```bash
+# List alle secrets
+gh secret list
+
+# Forventa output:
+SUPABASE_ACCESS_TOKEN       Updated 2026-01-28
+SUPABASE_ANON_KEY          Updated 2026-01-28
+SUPABASE_PROJECT_REF       Updated 2026-01-28
+SUPABASE_SERVICE_ROLE_KEY  Updated 2026-01-28
+SUPABASE_URL               Updated 2026-01-28
+```
+
+---
+
+## 🌐 Webflow Setup (Etter First Deploy)
+
+1. **Last ned loader fra pipeline**:
+   - Gå til: **Actions → Auto-Deploy Pipeline → Latest run**
+   - Last ned artifact: `webflow-loader`
+
+2. **Legg til i Webflow**:
+   - Gå til: **Webflow Project Settings → Custom Code → Footer**
+   - Lim inn:
+     ```html
+     <script src="https://cdn.jsdelivr.net/gh/tombomann/klarpakke@main/web/dist/webflow-loader.js"></script>
+     ```
+
+3. **Publiser Webflow site**
+
+4. **Test**:
+   - Åpne siden i nettleser
+   - Åpne DevTools Console (Cmd+Option+J)
+   - Sjekk for `[Klarpakke]` logger
 
 ---
 
 ## 🔧 Troubleshooting
 
-### Webflow Sync Fails (HTTP 400)
-**Symptom:** `❌ BTC BUY (HTTP 400)`
+### Problem: "Invalid project ref format"
 
-**Fix:**
 ```bash
-# 1. Debug collection schema
-bash scripts/debug-webflow-collection.sh
+# Sjekk lengde (må være eksakt 20)
+echo ${#SUPABASE_PROJECT_REF}
 
-# 2. Check field mapping matches
-# 3. Verify API token has 'cms:write' scope
-# 4. Re-run complete deployment
-bash scripts/complete-deployment.sh
+# Sjekk format (kun små bokstaver)
+echo $SUPABASE_PROJECT_REF | grep -E '^[a-z]{20}$'
+
+# Kjør setup igjen om feil:
+bash scripts/setup-supabase-env.sh
 ```
 
-### Webflow Sync Fails (HTTP 404)
-**Symptom:** `❌ BTC BUY (HTTP 404)`
+### Problem: "Invalid access token format"
 
-**Cause:** Wrong Collection ID
-
-**Fix:**
 ```bash
-# Get correct Collection ID
-bash scripts/get-webflow-collection-id.sh
+# Sjekk at token starter med sbp_
+echo ${SUPABASE_ACCESS_TOKEN:0:10}
+# Skal vise: sbp_...
 
-# Verify .env updated
-cat .env | grep WEBFLOW_COLLECTION_ID
-
-# Re-run sync
-bash scripts/webflow-sync.sh
+# Om feil, hent ny token:
+# https://supabase.com/dashboard/account/tokens
 ```
 
-### Webflow UI Not Loading
-**Symptom:** Console shows no `[Klarpakke]` messages
+### Problem: Deploy-script feiler
 
-**Fix:**
-1. Verify Custom Code saved: Project Settings → Custom Code
-2. Hard refresh: Cmd+Shift+R
-3. Check JavaScript syntax errors in Console
-4. Re-paste JavaScript:
-   ```bash
-   bash scripts/webflow-one-click.sh
-   ```
-
-### Dashboard 404
-**Symptom:** `/app/dashboard` returns 404
-
-**Fix:**
-1. Check page exists in Webflow: Pages panel → /app/dashboard
-2. Verify page is published
-3. Check password protection enabled
-4. Re-publish site from Webflow Designer
-
----
-
-## 📈 Monitoring
-
-### Live Dashboards
-- **Supabase**: https://supabase.com/dashboard/project/swfyuwkptusceiouqlks
-- **Webflow CMS**: https://webflow.com/dashboard/sites/69743573d50cc16bbbe54344/collections/6978258967f5139c7426902d
-- **GitHub Actions**: https://github.com/tombomann/klarpakke/actions
-- **Live Site**: https://klarpakke-c65071.webflow.io/app/dashboard
-
-### Key Metrics
 ```bash
-# Supabase stats
-make test
+# Test Supabase connectivity manuelt
+curl -H "apikey: $SUPABASE_ANON_KEY" \
+     "$SUPABASE_URL/rest/v1/"
 
-# Export KPIs (last 30 days)
-bash scripts/export-kpis.sh 30
+# Skal returnere JSON (ikke 404)
 
-# Edge Function logs
-make edge-logs
+# Test Supabase CLI link
+supabase link --project-ref $SUPABASE_PROJECT_REF
+```
 
-# Count synced signals
-curl -s "${SUPABASE_URL}/rest/v1/signals?select=count" \
-  -H "apikey: ${SUPABASE_ANON_KEY}" | jq .
+### Problem: GitHub Actions feiler
+
+```bash
+# Hent logger for siste feilede kjøring
+gh run view $(gh run list --workflow auto-deploy.yml --json databaseId -q '.[0].databaseId') --log-failed
+
+# Sjekk at secrets er satt riktig
+gh secret list
 ```
 
 ---
 
-## 📚 Next Steps
+## 📚 Neste Steg
 
-### Production Readiness
-1. **Custom Domain**: Connect `klarpakke.no` in Webflow
-2. **User Auth**: Replace password with Supabase Auth
-3. **Real Trading**: Connect to broker API (Alpaca, Interactive Brokers)
-4. **Monitoring**: Add Sentry for error tracking
-5. **Alerts**: Setup Slack notifications via Make.com
+- **Full dokumentasjon**: [README.md](README.md)
+- **CI/CD guide**: [.github/AUTOMATION-SETUP.md](.github/AUTOMATION-SETUP.md)
+- **Production plan**: [docs/PRODUCTION-PLAN.md](docs/PRODUCTION-PLAN.md)
+- **Webflow manual**: [docs/WEBFLOW-MANUAL.md](docs/WEBFLOW-MANUAL.md)
 
-### Paper Trading (7 days)
+---
+
+## 🆘 Kommandooversikt
+
 ```bash
-# Run paper trading validation
-make paper-trading
+# Setup (kjør en gang)
+bash scripts/setup-supabase-env.sh     # Hent Supabase credentials
+bash scripts/sync-github-secrets.sh    # Sync til GitHub
 
-# Target metrics:
-# - Win rate: >65%
-# - Reward/Risk: >1.5
-# - Max drawdown: <10%
+# Development
+npm run build:web                      # Minify JS
+npm run deploy:webflow                 # Generate loader
+npm run deploy:backend                 # Deploy Supabase
+npm run ci:all                         # Full chain
+
+# CI/CD
+gh workflow run '🚀 Auto-Deploy Pipeline' --ref main -f environment=staging
+gh run watch                           # Se status
+gh run list --workflow auto-deploy.yml # List runs
+
+# Debugging
+gh secret list                         # List GitHub Secrets
+supabase projects list                 # List Supabase projects
+supabase functions list                # List deployed functions
 ```
 
-### Scale Up
-1. Increase signal generation frequency (hourly → every 15 min)
-2. Add more symbols (BTC, ETH, SPY, QQQ, etc.)
-3. Implement portfolio management (position sizing, risk limits)
-4. Add backtesting (test strategies on historical data)
-
 ---
 
-## 🔗 Resources
-
-- **Main README**: [README.md](./README.md)
-- **Architecture**: [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-- **Webflow Deployment**: [docs/WEBFLOW-DEPLOYMENT.md](./docs/WEBFLOW-DEPLOYMENT.md)
-- **Deployment Status**: [DEPLOYMENT-STATUS.md](./DEPLOYMENT-STATUS.md)
-
----
-
-## ❓ FAQ
-
-### Q: How long does deployment take?
-A: ~10 minutes total (5 min automated + 5 min Webflow UI)
-
-### Q: Do I need to manually sync signals?
-A: No, GitHub Actions syncs every 5 minutes automatically.
-
-### Q: Can I change the password?
-A: Yes, in Webflow: Pages → /app/dashboard → Settings → Password Protection
-
-### Q: How do I add more signals?
-A: Run `make paper-seed` or call Edge Function `generate-trading-signal`
-
-### Q: Is this production-ready?
-A: No, it's a demo/MVP. Add auth, monitoring, and real broker integration for production.
-
----
-
-**Last Updated**: 27. januar 2026  
-**Version**: 1.0
-
-🎉 **Ready to deploy? Run the one-command quickstart at the top!**
+**Spørsmål?** Opprett issue eller sjekk [full dokumentasjon](README.md).
