@@ -16,6 +16,8 @@
     "deploy:backend": "bash scripts/deploy-backend.sh",
     "build:web": "node scripts/build-web.js",
     "deploy:webflow": "node scripts/gen-webflow-loader.js",
+    "gen:webflow-staging": "bash scripts/generate-webflow-loader.sh staging",
+    "gen:webflow-production": "bash scripts/generate-webflow-loader.sh production",
     "ci:all": "npm run build:web && npm run deploy:webflow && npm run deploy:backend",
     "deploy:webflow:ui": "node scripts/deploy-webflow-ui.js"
   },
