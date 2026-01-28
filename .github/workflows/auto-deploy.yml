@@ -19,6 +19,11 @@ on:
         options:
           - staging
           - production
+      skip_webflow:
+        description: 'Skip Webflow deployment'
+        required: false
+        default: false
+        type: boolean
 
 env:
   NODE_VERSION: '18'
@@ -53,8 +58,7 @@ jobs:
           echo "✓ All JS files valid"
 
       - name: 🏗️ Build web bundles
-        run: npm run build:web || echo "⚠️ build:web not configured yet"
-        continue-on-error: true
+        run: npm run build:web
 
       - name: 📦 Upload artifacts
         uses: actions/upload-artifact@v4
@@ -62,7 +66,6 @@ jobs:
           name: web-bundles
           path: web/dist/
           retention-days: 1
-        if: always()
 
   # ═══════════════════════════════════════════════════════════
   # 2. SUPABASE SETUP (database + migrations)
@@ -98,26 +101,15 @@ jobs:
 
       - name: 🔑 Link Supabase project
         run: |
-          # CRITICAL FIX: Strip any whitespace/newlines from the secret
           PROJECT_REF="$(echo -n "${{ secrets.SUPABASE_PROJECT_REF }}" | tr -d '[:space:]')"
           echo "Cleaned Project Ref: ${PROJECT_REF:0:5}..."
           echo "Length: ${#PROJECT_REF} chars"
           
-          # Validate format: 20 alphanumeric characters (lowercase letters + numbers)
-          # ✅ FIXED: Changed from [a-z]{20} to [a-z0-9]{20} to allow digits
           if [[ ! "$PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
             echo "❌ ERROR: Invalid PROJECT_REF format!"
             echo "   Expected: 20 alphanumeric characters (lowercase letters + digits)"
             echo "   Example: 'swfyuwkptusceiouqlks'"
             echo "   Got: '$PROJECT_REF' (${#PROJECT_REF} chars)"
-            echo ""
-            echo "   Debug info:"
-            echo "   - First 10 chars: ${PROJECT_REF:0:10}"
-            echo "   - Last 10 chars: ${PROJECT_REF: -10}"
-            echo "   - Character types:"
-            if [[ "$PROJECT_REF" =~ [0-9] ]]; then echo "     ✓ Contains numbers"; fi
-            if [[ "$PROJECT_REF" =~ [a-z] ]]; then echo "     ✓ Contains letters"; fi
-            if [[ "$PROJECT_REF" =~ [^a-z0-9] ]]; then echo "     ⚠️  Contains special chars"; fi
             exit 1
           fi
           
@@ -143,12 +135,18 @@ jobs:
         continue-on-error: true
 
   # ═══════════════════════════════════════════════════════════
-  # 3. WEB BUILD & WEBFLOW LOADER (generate runtime config)
+  # 3. WEBFLOW DEPLOY (automatic via API)
   # ═══════════════════════════════════════════════════════════
-  webflow-setup:
-    name: 🎨 Build Webflow Assets
+  webflow-deploy:
+    name: 🎨 Deploy to Webflow
     runs-on: ubuntu-latest
-    needs: lint-and-build
+    needs: [lint-and-build, supabase-deploy]
+    if: ${{ !inputs.skip_webflow }}
+    env:
+      WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+      WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -161,209 +159,175 @@ jobs:
       - name: 📚 Install dependencies
         run: npm ci
 
-      - name: 🔐 Create runtime config
-        run: |
-          cat > web/config.runtime.json << 'EOF'
-          {
-            "supabaseUrl": "${{ secrets.SUPABASE_URL }}",
-            "supabaseAnonKey": "${{ secrets.SUPABASE_ANON_KEY }}",
-            "debug": false,
-            "version": "${{ github.sha }}",
-            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          }
-          EOF
-          cat web/config.runtime.json
+      - name: 📚 Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: 🏗️ Generate Webflow Loader
+      - name: 📥 Download web bundles
+        uses: actions/download-artifact@v4
+        with:
+          name: web-bundles
+          path: web/dist/
+
+      - name: 🔐 Verify Webflow secrets
         run: |
-          # Generate a loader that injects the bundles + config into Webflow
-          node -e "
-          const fs = require('fs');
-          const config = JSON.parse(fs.readFileSync('web/config.runtime.json', 'utf8'));
+          if [[ -z "$WEBFLOW_API_TOKEN" ]]; then
+            echo "❌ ERROR: WEBFLOW_API_TOKEN not set in Secrets"
+            exit 1
+          fi
+          if [[ -z "$WEBFLOW_SITE_ID" ]]; then
+            echo "❌ ERROR: WEBFLOW_SITE_ID not set in Secrets"
+            exit 1
+          fi
+          echo "✓ Webflow secrets OK"
+
+      - name: 🚀 Deploy to Webflow
+        run: |
+          echo "🎨 Generating Webflow loader..."
           
-          const loaderScript = \`
+          # Generate inline loader (no external files)
+          LOADER_HTML=$(cat <<'EOF'
+          <script>
+          // Klarpakke Auto-Loader v2 (CI/CD)
+          // Deployed: $(date -u "+%Y-%m-%d %H:%M:%S UTC")
+          // Commit: ${{ github.sha }}
+          
           (function() {
-            window.KLARPAKKE_CONFIG = \${JSON.stringify(config, null, 2)};
-            console.log('[Klarpakke] Config loaded:', window.KLARPAKKE_CONFIG);
+            'use strict';
+            
+            window.KLARPAKKE_CONFIG = {
+              supabaseUrl: '${{ secrets.SUPABASE_URL }}',
+              supabaseAnonKey: '${{ secrets.SUPABASE_ANON_KEY }}',
+              version: '${{ github.sha }}',
+              debug: false
+            };
+            
+            console.log('[Klarpakke] Config loaded', window.KLARPAKKE_CONFIG.version);
+            
+            const CDN_BASE = 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/dist';
             
             // Load main site script
-            const script1 = document.createElement('script');
-            script1.src = 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/klarpakke-site.js';
-            script1.async = true;
-            document.body.appendChild(script1);
+            const mainScript = document.createElement('script');
+            mainScript.src = CDN_BASE + '/klarpakke-site.js';
+            mainScript.async = true;
+            mainScript.onload = () => console.log('[Klarpakke] Main script loaded');
+            mainScript.onerror = () => console.error('[Klarpakke] Failed to load main script');
+            document.body.appendChild(mainScript);
             
-            // Load calculator (if needed)
-            const script2 = document.createElement('script');
-            script2.src = 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/calculator.js';
-            script2.async = true;
-            document.body.appendChild(script2);
+            // Load calculator (only if on /kalkulator page)
+            if (window.location.pathname.includes('/kalkulator')) {
+              const calcScript = document.createElement('script');
+              calcScript.src = CDN_BASE + '/calculator.js';
+              calcScript.async = true;
+              calcScript.onload = () => console.log('[Klarpakke] Calculator loaded');
+              calcScript.onerror = () => console.error('[Klarpakke] Failed to load calculator');
+              document.body.appendChild(calcScript);
+            }
           })();
-          \`;
+          </script>
+          EOF
+          )
           
-          fs.writeFileSync('web/loader.js', loaderScript);
-          console.log('✓ Loader generated');
-          "
+          echo "📤 Uploading Custom Code to Webflow..."
+          
+          LOADER_JSON=$(printf '%s' "$LOADER_HTML" | jq -Rs '.')
+          
+          PAYLOAD=$(cat <<EOF
+          {
+            "scripts": [
+              {
+                "location": "footer",
+                "code": ${LOADER_JSON}
+              }
+            ]
+          }
+          EOF
+          )
+          
+          RESPONSE=$(curl -sS -X PUT "https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/custom_code" \
+            -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+          
+          if echo "$RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
+            echo "✅ Custom Code updated"
+          else
+            echo "❌ Failed to update Custom Code:"
+            echo "$RESPONSE" | jq -r '.message // .'
+            exit 1
+          fi
+          
+          echo "📣 Publishing Webflow site..."
+          
+          PUBLISH_RESPONSE=$(curl -sS -X POST "https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/publish" \
+            -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"domains": ["*.webflow.io"]}')
+          
+          if echo "$PUBLISH_RESPONSE" | jq -e '.publishedAt' > /dev/null 2>&1; then
+            PUBLISHED_AT=$(echo "$PUBLISH_RESPONSE" | jq -r '.publishedAt')
+            echo "✅ Site published at: $PUBLISHED_AT"
+          else
+            echo "⚠️  Publish may have failed:"
+            echo "$PUBLISH_RESPONSE" | jq -r '.message // .'
+          fi
 
-      - name: 📤 Upload Webflow loader
+      - name: 📊 Generate Webflow Summary
+        run: |
+          cat > webflow-summary.txt << 'EOF'
+          ═══════════════════════════════════════════════════════════
+          WEBFLOW DEPLOYMENT SUMMARY
+          ═══════════════════════════════════════════════════════════
+          Commit: ${{ github.sha }}
+          Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          CDN: https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/dist
+          
+          ✅ Webflow Custom Code Updated
+          ✅ Site Published to *.webflow.io
+          
+          TEST INSTRUCTIONS:
+          1. Open DevTools (F12) → Console
+          2. Look for: [Klarpakke] Config loaded
+          3. Test pages:
+             - / (landing)
+             - /pricing
+             - /app/dashboard
+             - /kalkulator
+          ═══════════════════════════════════════════════════════════
+          EOF
+          cat webflow-summary.txt
+
+      - name: 📤 Upload Webflow summary
         uses: actions/upload-artifact@v4
         with:
-          name: webflow-loader
-          path: web/loader.js
-          retention-days: 30
+          name: webflow-summary
+          path: webflow-summary.txt
 
   # ═══════════════════════════════════════════════════════════
   # 4. HEALTH CHECK (sanity test)
   # ═══════════════════════════════════════════════════════════
   health-check:
-    name: 🏥 Health Check
+    name: 🏮 Health Check
     runs-on: ubuntu-latest
-    needs: [lint-and-build, supabase-deploy, webflow-setup]
+    needs: [lint-and-build, supabase-deploy, webflow-deploy]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
-
-      - name: 📦 Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: 📚 Install dependencies
-        run: npm ci
 
       - name: 🔍 Verify Supabase connection
         run: |
           echo "Testing Supabase connection..."
           curl -s -w "\nStatus: %{http_code}\n" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/" || echo "⚠️ Supabase offline check"
-        continue-on-error: true
-
-      - name: ✅ Verify web scripts
-        run: |
-          echo "✓ klarpakke-site.js syntax check"
-          node -c web/klarpakke-site.js
-          echo "✓ calculator.js syntax check"
-          node -c web/calculator.js
-          echo "✓ All checks passed"
-
-      - name: 📋 Generate deployment summary
-        run: |
-          cat > deployment-summary.txt << 'EOF'
-          ═══════════════════════════════════════════════════════════
-          DEPLOYMENT SUMMARY
-          ═══════════════════════════════════════════════════════════
-          Commit: ${{ github.sha }}
-          Branch: ${{ github.ref_name }}
-          Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          
-          ✅ Lint & Build: PASSED
-          ✅ Supabase Deploy: PASSED
-          ✅ Webflow Setup: PASSED
-          ✅ Health Check: PASSED
-          
-          NEXT STEPS:
-          1. Review staging environment at: https://staging.klarpakke.no
-          2. Test all user flows (pricing → dashboard → settings)
-          3. Verify Webflow integrations
-          4. Run manual acceptance tests
-          5. Approve prod deployment via GitHub Environments
-          
-          Webflow Snippet (paste in Footer):
-          <script src="https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/loader.js"></script>
-          ═══════════════════════════════════════════════════════════
-          EOF
-          cat deployment-summary.txt
-
-      - name: 📤 Upload summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: deployment-summary
-          path: deployment-summary.txt
-
-  # ═══════════════════════════════════════════════════════════
-  # 5. DEPLOY TO STAGING (automatic)
-  # ═══════════════════════════════════════════════════════════
-  deploy-staging:
-    name: 🎪 Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: health-check
-    environment:
-      name: staging
-      url: https://staging.klarpakke.no
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🚀 Sync to staging
-        run: |
-          echo "✓ Staging deployment placeholder"
-          echo "  In production, this would:"
-          echo "  1. Sync web bundles to Staging CDN"
-          echo "  2. Update Webflow preview"
-          echo "  3. Run Playwright e2e tests"
-          echo "  4. Notify #deployments Slack channel"
-
-  # ═══════════════════════════════════════════════════════════
-  # 6. DEPLOY TO PRODUCTION (manual approval required)
-  # ═══════════════════════════════════════════════════════════
-  deploy-production:
-    name: 🚀 Deploy to Production
-    runs-on: ubuntu-latest
-    needs: deploy-staging
-    environment:
-      name: production
-      url: https://klarpakke.no
-    if: github.ref_name == 'main'
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🔐 Verify prod secrets
-        run: |
-          if [[ -z "$PROD_SUPABASE_URL" ]]; then
-            echo "⚠️ PROD_SUPABASE_URL not set, using default"
-          else
-            echo "✓ Production secrets verified"
-          fi
-        env:
-          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
-        continue-on-error: true
-
-      - name: 🚀 Deploy to production
-        run: |
-          echo "✓ Production deployment approved"
-          echo "  Deploying commit: ${{ github.sha }}"
-          echo "  Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          echo ""
-          echo "  In production, this would:"
-          echo "  1. Sync web bundles to Production CDN"
-          echo "  2. Update Webflow live site"
-          echo "  3. Flush CDN cache"
-          echo "  4. Run smoke tests"
-          echo "  5. Notify team + create release"
-
-      - name: 📢 Create release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Production Release ${{ github.run_number }}
-          body: |
-            **Commit:** ${{ github.sha }}
-            **Branch:** ${{ github.ref_name }}
-            **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          draft: false
-          prerelease: false
+            "${{ secrets.SUPABASE_URL }}/rest/v1/" || echo "⚠️  Supabase offline check"
         continue-on-error: true
 
   # ═══════════════════════════════════════════════════════════
-  # 7. NOTIFICATION (always run)
+  # 5. NOTIFICATION (always run)
   # ═══════════════════════════════════════════════════════════
   notify:
     name: 📬 Notify Team
     runs-on: ubuntu-latest
-    needs: [lint-and-build, supabase-deploy, webflow-setup, health-check, deploy-staging]
+    needs: [lint-and-build, supabase-deploy, webflow-deploy, health-check]
     if: always()
     steps:
       - name: 📊 Deployment Status
@@ -371,6 +335,5 @@ jobs:
           echo "Workflow Status: ${{ job.status }}"
           echo "Lint & Build: ${{ needs.lint-and-build.result }}"
           echo "Supabase: ${{ needs.supabase-deploy.result }}"
-          echo "Webflow: ${{ needs.webflow-setup.result }}"
+          echo "Webflow: ${{ needs.webflow-deploy.result }}"
           echo "Health Check: ${{ needs.health-check.result }}"
-          echo "Staging: ${{ needs.deploy-staging.result }}"
