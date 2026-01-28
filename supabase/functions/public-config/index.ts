@@ -31,6 +31,12 @@ serve(async (req) => {
   const assetBase = Deno.env.get('KLARPAKKE_ASSET_BASE') || 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@main/web';
   const debug = (Deno.env.get('KLARPAKKE_DEBUG') || '').toLowerCase();
 
+  // Marketing/affiliate config (safe to expose)
+  // These may be stored as Supabase secrets for central config management.
+  const binanceReferralUrl = Deno.env.get('BINANCE_REFERRAL_URL') || '';
+  const binanceReferralCode = Deno.env.get('BINANCE_REFERRAL_CODE') || '';
+  const binanceAffiliateId = Deno.env.get('BINANCE_AFFILIATE_ID') || '';
+
   // Minimal validation
   if (!supabaseUrl || !supabaseAnonKey) {
     return json(
@@ -47,7 +53,7 @@ serve(async (req) => {
 
   // If clients send If-None-Match, we can respond 304.
   // Keep it simple: ETag is derived from a short hash-like string.
-  const etag = `W/"kp-${supabaseUrl.length}-${supabaseAnonKey.length}-${assetBase.length}"`;
+  const etag = `W/"kp-${supabaseUrl.length}-${supabaseAnonKey.length}-${assetBase.length}-${binanceReferralUrl.length}"`;
   const inm = req.headers.get('if-none-match');
   if (inm && inm === etag) {
     return new Response(null, { status: 304, headers: { ...corsHeaders, ETag: etag } });
@@ -59,7 +65,12 @@ serve(async (req) => {
       supabaseAnonKey,
       assetBase,
       debug: debug === '1' || debug === 'true',
-      version: 'public-config-v1',
+      version: 'public-config-v2',
+      binance: {
+        referralUrl: binanceReferralUrl || null,
+        referralCode: binanceReferralCode || null,
+        affiliateId: binanceAffiliateId || null,
+      },
     },
     200,
     { ETag: etag },

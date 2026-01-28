@@ -1,6 +1,6 @@
-// Klarpakke Site Engine v2.3
+// Klarpakke Site Engine v2.4
 // Webflow master script (landing + app)
-// Updates: Robust path detection, DOM-ready retries, explicit error handling
+// Updates: Public-config fetch + automatic Binance referral wiring
 
 (function () {
   'use strict';
@@ -28,13 +28,13 @@
       supabaseAnonKey: getMeta('klarpakke:supabase-anon-key'),
       debug: getMeta('klarpakke:debug'),
     };
-    
+
     // Merge: Defaults -> Body/Meta -> Window (Loader)
     const cfg = Object.assign({}, DEFAULTS, fromMeta, fromWindow);
 
     // Boolean normalization
     if (typeof cfg.debug === 'string') cfg.debug = cfg.debug === '1' || cfg.debug === 'true';
-    
+
     // Normalize URL (strip trailing slash)
     if (cfg.supabaseUrl) cfg.supabaseUrl = String(cfg.supabaseUrl).replace(/\/$/, '');
 
@@ -65,7 +65,7 @@
     el.style.display = 'block';
     el.setAttribute('data-type', type);
     el.classList.remove('hidden'); // Webflow utility class support
-    
+
     // Auto-hide
     setTimeout(() => {
       el.style.display = 'none';
@@ -87,7 +87,7 @@
 
     const url = `${config.supabaseUrl}${endpoint}`;
     const method = options.method || 'GET';
-    
+
     logger.debug(`Fetching: ${method} ${url}`);
 
     const ctrl = new AbortController();
@@ -95,19 +95,19 @@
 
     try {
       const headers = {
-        'apikey': config.supabaseAnonKey,
-        'Authorization': `Bearer ${config.supabaseAnonKey}`,
+        apikey: config.supabaseAnonKey,
+        Authorization: `Bearer ${config.supabaseAnonKey}`,
         'Content-Type': 'application/json',
-        ...options.headers
+        ...options.headers,
       };
 
       const res = await fetch(url, { ...options, headers, signal: ctrl.signal });
-      
+
       if (!res.ok) {
         const errorText = await res.text().catch(() => res.statusText);
         throw new Error(`API Error ${res.status}: ${errorText}`);
       }
-      
+
       return await res.json();
     } catch (err) {
       logger.error('Fetch failed:', err);
@@ -115,6 +115,63 @@
     } finally {
       clearTimeout(t);
     }
+  }
+
+  // 2.1 Public config (from Supabase Edge Function)
+  let _publicConfigPromise = null;
+
+  function getPublicConfig() {
+    if (_publicConfigPromise) return _publicConfigPromise;
+
+    _publicConfigPromise = (async () => {
+      try {
+        // Served by: supabase/functions/public-config
+        const pc = await fetchJson('/functions/v1/public-config');
+        logger.debug('Public config loaded:', pc);
+        return pc;
+      } catch (err) {
+        logger.warn('Could not load public-config (continuing):', err);
+        return null;
+      }
+    })();
+
+    return _publicConfigPromise;
+  }
+
+  function applyBinanceReferralUrl(url) {
+    if (!url) return;
+
+    // Webflow convention:
+    // - Add attribute: data-kp-ref="binance" on <a> or <button>
+    // - Optional: data-kp-ref-target="_blank"
+    const els = document.querySelectorAll('[data-kp-ref="binance"], [data-kp-binance-referral]');
+    if (!els.length) return;
+
+    els.forEach((el) => {
+      const target = el.getAttribute('data-kp-ref-target') || '_blank';
+
+      if (el.tagName === 'A') {
+        el.setAttribute('href', url);
+        el.setAttribute('rel', 'noopener noreferrer');
+        el.setAttribute('target', target);
+        return;
+      }
+
+      // Buttons/divs: attach click handler
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (target === '_self') window.location.href = url;
+        else window.open(url, target);
+      });
+    });
+
+    logger.info(`Binance referral wiring applied to ${els.length} element(s)`);
+  }
+
+  async function initMarketing() {
+    const pc = await getPublicConfig();
+    const url = pc?.binance?.referralUrl;
+    if (url) applyBinanceReferralUrl(url);
   }
 
   // 3. Robust Path Detection
@@ -131,7 +188,7 @@
 
   // 4. Element Safety Check
   function checkRequiredElements(ids) {
-    const missing = ids.filter(id => !document.getElementById(id));
+    const missing = ids.filter((id) => !document.getElementById(id));
     if (missing.length > 0) {
       logger.warn(`Missing required DOM elements on this route: ${missing.join(', ')}`);
       if (config.debug) toast(`Missing IDs: ${missing.join(', ')}`, 'error');
@@ -154,8 +211,10 @@
       container.innerHTML = '<div class="kp-loader">Laster signaler...</div>'; // Use CSS loader if available
 
       try {
-        const signals = await fetchJson('/rest/v1/signals?select=*&status=eq.pending&order=created_at.desc&limit=20');
-        
+        const signals = await fetchJson(
+          '/rest/v1/signals?select=*&status=eq.pending&order=created_at.desc&limit=20',
+        );
+
         if (!signals.length) {
           container.innerHTML = '<div class="kp-empty">Ingen nye signaler akkurat nå. ☕</div>';
           return;
@@ -163,9 +222,9 @@
 
         container.innerHTML = signals.map(renderSignalCard).join('');
         logger.info(`Loaded ${signals.length} signals`);
-
       } catch (err) {
-        container.innerHTML = `<div class="kp-error">Kunne ikke laste data. <button onclick="location.reload()">Prøv igjen</button></div>`;
+        container.innerHTML =
+          '<div class="kp-error">Kunne ikke laste data. <button onclick="location.reload()">Prøv igjen</button></div>';
         toast('Feil ved lasting av signaler', 'error');
       }
     }
@@ -194,7 +253,7 @@
 
       const { action, id } = btn.dataset;
       const card = document.getElementById(`signal-${id}`);
-      
+
       // UI Optimistic Update
       const originalText = btn.innerText;
       btn.disabled = true;
@@ -203,17 +262,16 @@
       try {
         await fetchJson('/functions/v1/approve-signal', {
           method: 'POST',
-          body: JSON.stringify({ signal_id: id, action })
+          body: JSON.stringify({ signal_id: id, action }),
         });
 
         toast(`Signal ${action === 'APPROVE' ? 'godkjent' : 'avvist'}!`, 'success');
-        
+
         // Remove card gracefully
         if (card) {
           card.style.opacity = '0.5';
           setTimeout(() => card.remove(), 500);
         }
-
       } catch (err) {
         btn.innerText = originalText;
         btn.disabled = false;
@@ -236,7 +294,7 @@
       try {
         await fetchJson('/functions/v1/update-user-settings', {
           method: 'POST',
-          body: JSON.stringify({ user_id: 'demo-user', plan, compounding_enabled: compound })
+          body: JSON.stringify({ user_id: 'demo-user', plan, compounding_enabled: compound }),
         });
         toast('Innstillinger lagret ✅', 'success');
       } catch (err) {
@@ -272,10 +330,13 @@
     logger.info(`Booting on route: ${route.raw}`);
     logger.debug('Config loaded:', config);
 
+    // Global marketing wiring (safe no-op if missing)
+    initMarketing();
+
     if (route.isDashboard) initDashboard();
     else if (route.isSettings) initSettings();
     else if (route.isPricing) initPricing();
-    
+
     // Calculator is handled by calculator.js (loaded in parallel)
   }
 
@@ -284,5 +345,4 @@
   } else {
     boot();
   }
-
 })();

@@ -12,14 +12,23 @@ Nyttige innganger:
 - Referral: https://www.binance.com/en/activity/referral
 - Affiliate program: https://www.binance.com/en/events/affiliate
 
-## Hvordan vi bruker referral-lenken i Klarpakke
+## 1-click config (GitHub → Supabase → Webflow)
 
-**Mål:** Ikke hardkode referral-lenker i Webflow Designer (minimerer risiko for feil + “script som tekst”).
+**Mål:** Ikke hardkode referral-lenker i Webflow Designer.
 
-Anbefalt:
-- Legg referral-lenken i GitHub Secrets (som en “config”-verdi)
-- Deploy pipeline skyver den til Supabase Edge Function secrets
-- Frontend bruker en Edge Function som returnerer “current referral url” (når vi implementerer den), slik at Webflow/JS alltid får riktig lenke.
+Flyt:
+1. Legg referral-config i GitHub Actions Secrets eller `.env` lokalt.
+2. Deploy (CI/CD eller `npm run deploy:backend`) skyver config inn i Supabase Edge Function secrets.
+3. `public-config` Edge Function eksponerer kun “public” runtime config (inkl. referral URL) til frontend.
+4. `web/klarpakke-site.js` henter config og “wires” alle Binance-CTA’er automatisk.
+
+## Webflow: marker CTA’er (ingen lenker)
+
+For å koble en knapp/lenke til Binance referral automatisk:
+- Legg attribute på elementet: `data-kp-ref="binance"`
+- (Valgfritt) styr target: `data-kp-ref-target="_blank"` eller `_self`
+
+Da setter Klarpakke-scriptet `href` på `<a>` eller click-handler på `<button>` automatisk.
 
 ## Secrets / variabler (navn)
 
