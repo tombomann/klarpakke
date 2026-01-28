@@ -104,15 +104,20 @@ jobs:
           echo "Length: ${#PROJECT_REF} chars"
           
           # Validate format: 20 alphanumeric characters (lowercase letters + numbers)
+          # ✅ FIXED: Changed from [a-z]{20} to [a-z0-9]{20} to allow digits
           if [[ ! "$PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
             echo "❌ ERROR: Invalid PROJECT_REF format!"
-            echo "   Expected: 20 alphanumeric characters (lowercase + digits)"
+            echo "   Expected: 20 alphanumeric characters (lowercase letters + digits)"
             echo "   Example: 'swfyuwkptusceiouqlks'"
             echo "   Got: '$PROJECT_REF' (${#PROJECT_REF} chars)"
             echo ""
             echo "   Debug info:"
             echo "   - First 10 chars: ${PROJECT_REF:0:10}"
             echo "   - Last 10 chars: ${PROJECT_REF: -10}"
+            echo "   - Character types:"
+            if [[ "$PROJECT_REF" =~ [0-9] ]]; then echo "     ✓ Contains numbers"; fi
+            if [[ "$PROJECT_REF" =~ [a-z] ]]; then echo "     ✓ Contains letters"; fi
+            if [[ "$PROJECT_REF" =~ [^a-z0-9] ]]; then echo "     ⚠️  Contains special chars"; fi
             exit 1
           fi
           
