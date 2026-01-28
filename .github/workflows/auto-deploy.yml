@@ -103,12 +103,16 @@ jobs:
           echo "Cleaned Project Ref: ${PROJECT_REF:0:5}..."
           echo "Length: ${#PROJECT_REF} chars"
           
-          # Validate format before attempting link
-          if [[ ! "$PROJECT_REF" =~ ^[a-z]{20}$ ]]; then
+          # Validate format: 20 alphanumeric characters (lowercase letters + numbers)
+          if [[ ! "$PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
             echo "❌ ERROR: Invalid PROJECT_REF format!"
-            echo "   Expected: 20 lowercase letters (e.g., 'abcdefghijklmnopqrst')"
+            echo "   Expected: 20 alphanumeric characters (lowercase + digits)"
+            echo "   Example: 'swfyuwkptusceiouqlks'"
             echo "   Got: '$PROJECT_REF' (${#PROJECT_REF} chars)"
-            echo "   Raw secret (escaped): $(echo "${{ secrets.SUPABASE_PROJECT_REF }}" | od -A n -t x1)"
+            echo ""
+            echo "   Debug info:"
+            echo "   - First 10 chars: ${PROJECT_REF:0:10}"
+            echo "   - Last 10 chars: ${PROJECT_REF: -10}"
             exit 1
           fi
           
