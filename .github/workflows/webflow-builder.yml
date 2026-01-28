@@ -1,0 +1,15 @@
+# Webflow Builder - Auto-generates Klarpakke pages with correct DOM IDs
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+## What it does
+1. Generates HTML components for each page (dashboard, settings, kalkulator)
+2. Uses Webflow API to create/update pages
+3. Publishes to staging
+
+## Required secrets
+- WEBFLOW_SITE_ID
+- WEBFLOW_API_TOKEN

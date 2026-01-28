@@ -1,0 +1,48 @@
+<!-- Klarpakke Webflow footer loader TEMPLATE (public-config mode) -->
+<!-- CI pushes this into Webflow site custom code. It contains NO anon key; it fetches config from Edge. -->
+
+<script>
+  (function () {
+    // Only value kept in Webflow: the public-config endpoint URL.
+    // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/public-config
+    var CONFIG_URL = '__PUBLIC_CONFIG_URL__';
+    var CACHE_BUST = '__CACHE_BUST__';
+
+    function load(src) {
+      var s = document.createElement('script');
+      s.src = src + '?v=' + encodeURIComponent(CACHE_BUST);
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+
+    function fail(msg) {
+      console.warn('[Klarpakke] Loader failed:', msg);
+    }
+
+    fetch(CONFIG_URL, { method: 'GET', mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (cfg) {
+        // Normalize
+        window.KLARPAKKE_CONFIG = {
+          supabaseUrl: cfg.supabaseUrl,
+          supabaseAnonKey: cfg.supabaseAnonKey,
+          debug: !!cfg.debug,
+        };
+
+        window.KLARPAKKE_ASSET_BASE = cfg.assetBase || 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@main/web';
+
+        var base = window.KLARPAKKE_ASSET_BASE;
+        load(base + '/klarpakke-site.js');
+
+        if (window.location && window.location.pathname && window.location.pathname.indexOf('/kalkulator') !== -1) {
+          load(base + '/calculator.js');
+        }
+      })
+      .catch(function (err) {
+        fail(err && err.message ? err.message : String(err));
+      });
+  })();
+</script>

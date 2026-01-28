@@ -8,9 +8,21 @@ set -e
 # Usage: bash scripts/one-click-full-deploy.sh
 
 echo "╔════════════════════════════════════════════════════════╗"
-echo "║  🚀 KLARPAKKE ONE-CLICK FULL DEPLOYMENT v1.0         ║"
+echo "║  🚀 KLARPAKKE ONE-CLICK FULL DEPLOYMENT v1.1         ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo ""
+
+# ═══════════════════════════════════════════════════════════
+# STEP 0: Guardrails
+# ═══════════════════════════════════════════════════════════
+if [ -f .git/MERGE_HEAD ]; then
+  echo "❌ Git merge is in progress (MERGE_HEAD exists)."
+  echo "Fix it first:"
+  echo "  git status"
+  echo "  git add . && git commit -m 'merge: resolve'"
+  echo "  # or: git merge --abort"
+  exit 1
+fi
 
 # ═══════════════════════════════════════════════════════════
 # STEP 1: Validate environment
@@ -51,12 +63,25 @@ if ! supabase status &>/dev/null; then
   supabase link --project-ref "$PROJECT_REF"
 fi
 
-# Deploy all Edge Functions
+# Deploy all Edge Functions (skip _shared and any folder without index.ts)
 echo "📤 Deploying Edge Functions..."
-for func in supabase/functions/*/; do
-  func_name=$(basename "$func")
+for func_dir in supabase/functions/*; do
+  [ -d "$func_dir" ] || continue
+  func_name=$(basename "$func_dir")
+
+  # Skip shared/internal folders
+  if [[ "$func_name" == _* ]]; then
+    continue
+  fi
+
+  # Only deploy real functions
+  if [ ! -f "$func_dir/index.ts" ]; then
+    continue
+  fi
+
   echo "  → $func_name"
   supabase functions deploy "$func_name" --no-verify-jwt
+
 done
 
 # Apply database migrations
@@ -77,22 +102,29 @@ echo ""
 # ═══════════════════════════════════════════════════════════
 echo "🎨 STEP 3/7: Preparing Webflow deployment..."
 
-# Copy latest JS to clipboard (user pastes manually)
+# Preferred: load JS from Supabase serve-js to avoid copy/paste issues
+SERVE_JS_URL="${SUPABASE_URL:-https://swfyuwkptusceiouqlks.supabase.co}/functions/v1/serve-js"
+
+echo "✅ Recommended Webflow footer snippet (copy/paste):"
+echo "<script src=\"$SERVE_JS_URL\" defer></script>"
+echo ""
+
+# Fallback: copy local JS to clipboard
 if command -v pbcopy >/dev/null 2>&1; then
   cat web/klarpakke-site.js | pbcopy
-  echo "✅ JavaScript copied to clipboard!"
-  echo ""
-  echo "📋 MANUAL STEP REQUIRED:"
-  echo "  1. Open: https://webflow.com/design/klarpakke-c65071"
-  echo "  2. Go to: Project Settings → Custom Code → Footer Code"
-  echo "  3. Paste clipboard content inside <script> tags"
-  echo "  4. Click 'Publish'"
-  echo ""
-  read -p "Press Enter when Webflow is published..."
-else
-  echo "⚠️  Manual Webflow deployment needed:"
-  echo "  Copy web/klarpakke-site.js to Webflow Custom Code"
+  echo "📋 Fallback JS copied to clipboard (web/klarpakke-site.js)."
 fi
+
+echo ""
+echo "📋 MANUAL STEP REQUIRED:"
+echo "  1. Open: https://webflow.com/design/klarpakke-c65071"
+echo "  2. Go to: Project Settings → Custom Code → Footer Code"
+echo "  3. Paste EXACTLY ONE of these options:"
+echo "     A) Preferred: <script src=\"$SERVE_JS_URL\" defer></script>"
+echo "     B) Fallback: wrap clipboard content inside <script>...</script>"
+echo "  4. Click 'Publish'"
+echo ""
+read -p "Press Enter when Webflow is published..."
 
 echo "✅ Webflow prepared"
 echo ""
@@ -105,24 +137,23 @@ echo "🔄 STEP 4/7: Deploying Make.com automation..."
 if [ -z "$MAKE_API_KEY" ] || [ -z "$MAKE_TEAM_ID" ]; then
   echo "⚠️  Make.com credentials not found in .env"
   echo "   Skipping automated deployment"
-  echo "   Manual: Import blueprints/signal-ingestion.json in Make.com"
+  echo "   Manual: Import blueprints/*.json in Make.com"
 else
   echo "📤 Uploading blueprints to Make.com..."
-  
+
   for blueprint in blueprints/*.json; do
+    [ -f "$blueprint" ] || continue
     blueprint_name=$(basename "$blueprint" .json)
     echo "  → $blueprint_name"
-    
+
     # Escape JSON for API call
     blueprint_json=$(cat "$blueprint" | jq -c '.')
-    
+
     curl -s -X POST "https://eu1.make.com/api/v2/scenarios/import" \
       -H "Authorization: Token $MAKE_API_KEY" \
       -H "Content-Type: application/json" \
-      -d "{
-        \"teamId\": $MAKE_TEAM_ID,
-        \"blueprint\": \"$(echo "$blueprint_json" | sed 's/"/\\"/g')\"
-      }" | jq -r '.scenario.id // "❌ Failed"'
+      -d "{\"teamId\": $MAKE_TEAM_ID, \"blueprint\": \"$(echo "$blueprint_json" | sed 's/"/\\"/g')\"}" \
+      | jq -r '.scenario.id // "❌ Failed"'
   done
 fi
 
@@ -144,55 +175,7 @@ echo ""
 # ═══════════════════════════════════════════════════════════
 echo "🔧 STEP 6/7: Setting up GitHub Actions..."
 
-if [ ! -f .github/workflows/deploy.yml ]; then
-  echo "⚠️  GitHub Actions workflow not found"
-  echo "   Creating .github/workflows/deploy.yml..."
-  mkdir -p .github/workflows
-  
-  cat > .github/workflows/deploy.yml <<'EOF'
-name: Deploy Klarpakke
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-      
-      - name: Deploy Edge Functions
-        run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase functions deploy --no-verify-jwt
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      
-      - name: Run tests
-        run: |
-          bash scripts/validate-env.sh || echo "Validation skipped in CI"
-EOF
-
-  echo "✅ GitHub Actions workflow created"
-  
-  echo ""
-  echo "📋 SETUP GITHUB SECRETS:"
-  echo "  Go to: https://github.com/tombomann/klarpakke/settings/secrets/actions"
-  echo "  Add:"
-  echo "    - SUPABASE_PROJECT_REF = $PROJECT_REF"
-  echo "    - SUPABASE_ACCESS_TOKEN = (your token)"
-  echo ""
-  read -p "Press Enter when GitHub secrets are set..."
-fi
-
-echo "✅ GitHub Actions configured"
+echo "✅ GitHub Actions configured (workflow should exist in repo)"
 echo ""
 
 # ═══════════════════════════════════════════════════════════
@@ -217,10 +200,11 @@ fi
 # Test Webflow
 echo "🧪 Testing Webflow..."
 WEBFLOW_URL="${WEBFLOW_URL:-https://klarpakke-c65071.webflow.io}"
-if curl -s -o /dev/null -w "%{http_code}" "$WEBFLOW_URL" | grep -q "200"; then
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$WEBFLOW_URL")
+if [ "$HTTP_CODE" = "200" ]; then
   echo "✅ Webflow: OK"
 else
-  echo "⚠️  Webflow: Not published yet"
+  echo "⚠️  Webflow: HTTP $HTTP_CODE"
 fi
 
 # Check signals count
@@ -236,22 +220,8 @@ echo "╔═══════════════════════�
 echo "║  🎉 DEPLOYMENT COMPLETE!                              ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo ""
-echo "📊 DEPLOYMENT SUMMARY:"
-echo "  • Supabase: 6 Edge Functions deployed"
-echo "  • Database: Migrations applied, $SIGNALS_COUNT signals"
-echo "  • Webflow: Ready for publish"
-echo "  • Make.com: Blueprints uploaded"
-echo "  • GitHub Actions: CI/CD configured"
-echo ""
-echo "🌐 LIVE URLS:"
+echo "🌐 LIVE URLS (verify in Webflow Pages):"
 echo "  • Dashboard: $WEBFLOW_URL/app/dashboard"
 echo "  • Calculator: $WEBFLOW_URL/kalkulator"
 echo "  • API Status: $SUPABASE_URL/functions/v1/debug-env"
-echo ""
-echo "📖 NEXT STEPS:"
-echo "  1. Test dashboard: open $WEBFLOW_URL/app/dashboard"
-echo "  2. Activate Make.com scenarios"
-echo "  3. Configure custom domain (optional)"
-echo ""
-echo "📚 DOCS: https://github.com/tombomann/klarpakke/blob/main/README.md"
 echo ""

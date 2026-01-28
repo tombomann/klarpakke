@@ -21,39 +21,49 @@ console.log('Hei');
 
 ---
 
-## Steg-for-Steg Deploy
+## Anbefalt: én liten loader (alt automatisk)
 
-### 1. Hent Koden
-Koden for hele nettstedet (Forside + Dashboard) ligger i filen `web/klarpakke-site.js`.
-Kopier alt innholdet fra denne filen.
+For å minimere copy/paste-feil og unngå at store scriptblokker blir til “tekst”, anbefaler vi å lime inn **kun en liten loader** i Project Settings. Den loader automatisk:
+- `web/klarpakke-site.js` (alle sider)
+- `web/calculator.js` (kun `/kalkulator`)
 
-### 2. Gå til Webflow Project Settings
-1. Åpne Webflow Designer.
-2. Klikk på **Webflow-logoen** (øverst til venstre) -> **Project Settings**.
-3. Gå til fanen **Custom Code**.
+Steg:
+1. Åpne `web/snippets/webflow-footer-loader.html` i repo.
+2. Kopier innholdet.
+3. Webflow Designer → Project Settings → Custom Code → **Footer Code (Before </body>)**.
+4. Lim inn, lagre og publiser.
+5. Bytt placeholder `YOUR_PROJECT_REF` og `YOUR_SUPABASE_ANON_KEY`.
 
-### 3. Lim Inn (Footer Code)
-1. Finn boksen merket **"Footer Code"** (Code before `</body>` tag).
-2. Slett eventuelt gammelt innhold.
-3. Skriv `<script>`
-4. Lim inn koden din.
-5. Skriv `</script>` etter koden.
+**Viktig:** aldri legg `SUPABASE_SERVICE_ROLE_KEY` i Webflow/klientkode (den er kun for server/Edge Functions). 
 
-Resultatet i boksen skal se slik ut:
+---
 
-```html
-<script>
-// Klarpakke Full Site Engine...
-(function() {
-  ... masse kode ...
-})();
-</script>
-```
+## Krav per side (IDs)
 
-### 4. Publiser
-1. Klikk grønn **Save Changes** knapp.
-2. Klikk blå **Publish** knapp (øverst til høyre).
-3. Vent til det står "Published successfully".
+Sørg for at disse ID-ene finnes i Webflow, ellers vil scriptet ikke kunne koble seg på UI:
+
+- Dashboard (`/app/dashboard`): `#signals-container`
+- Settings (`/app/settings`): `#save-settings`, `#plan-select`, `#compound-toggle`
+- Pricing (`/app/pricing`): knapper med `data-plan="paper|safe|pro|extrem"`
+- Kalkulator (`/kalkulator`): `#calc-start`, `#calc-crypto-percent`, `#calc-plan`, `#calc-result-table` (valgfritt: `#crypto-percent-label`)
+
+---
+
+## Alternativ: full manuell liming (legacy)
+
+Hvis du av en eller annen grunn ikke kan bruke loaderen:
+
+### 1. Site-wide (klarpakke-site.js)
+1. Kopier `web/klarpakke-site.js`.
+2. Project Settings → Custom Code → Footer Code.
+3. Pakk inn i `<script> ... </script>`.
+4. Save & Publish.
+
+### 2. Kalkulator (calculator.js)
+1. Kopier `web/calculator.js`.
+2. På siden `/kalkulator`: Page Settings → Custom Code → Before `</body>`.
+3. Pakk inn i `<script> ... </script>`.
+4. Publish.
 
 ---
 
@@ -62,5 +72,5 @@ Resultatet i boksen skal se slik ut:
 | Symptom | Årsak | Løsning |
 |---------|-------|---------|
 | **Koden vises som tekst på nettsiden** | Mangler `<script>` tags | Legg til `<script>` før og `</script>` etter koden. |
-| **Ingenting skjer (Dashboard er tomt)** | Feil passord / API-feil | Sjekk Console (F12) for røde feilmeldinger. |
-| **Gamle elementer vises fortsatt** | Caching / Gammel kode | Sjekk om du har limt inn kode på *enkeltsider* (Page Settings) også. Slett den, bruk kun Project Settings. |
+| **Ingenting skjer (Dashboard er tomt)** | Mangler IDs / feil config / API-feil | Sjekk Console (F12) for feilmeldinger og verifiser at siden har forventede element-IDs. |
+| **Gamle elementer vises fortsatt** | Caching / Gammel kode | Hard refresh / incognito, og sjekk at du ikke har limt inn kode på enkeltsider (Page Settings) også. |

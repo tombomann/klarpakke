@@ -1,18 +1,13 @@
-name: Deploy Klarpakke
+name: Deprecated - use Supabase backend deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
-  issues: write
-
 jobs:
-  test:
+  deprecated:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Test setup
-        run: echo "✅ Klarpakke automated deployment ready"
+      - name: Notice
+        run: |
+          echo "This workflow is deprecated to avoid double-deploys."
+          echo "Use: .github/workflows/supabase-backend-deploy.yml"
