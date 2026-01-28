@@ -1,110 +1,52 @@
-# Klarpakke One-Click Deploy Guide
+# 🚀 Klarpakke Webflow One-Click Deploy
 
-Deploy backend (Supabase) i én kommando, med Supabase CLI som **source of truth** (migrations + Edge Functions + secrets). 
+## Setup (Kun én gang)
 
----
+### Steg 1: Lim inn loader i Webflow
 
-## Quick Start (60 seconds)
+\`\`\`bash
+cat ~/klarpakke/web/dist/webflow-loader.js | pbcopy
+\`\`\`
 
-### 1. Sett environment variables
+**Deretter i Webflow:**
+1. Åpne: https://webflow.com/dashboard/sites/klarpakke-c65071/designer
+2. Klikk ⚙️ (Site settings) øverst til venstre  
+3. Gå til **Custom Code**
+4. Scroll ned til **Footer Code**
+5. Lim inn (Cmd+V)
+6. Klikk **Save**
+7. Klikk **Publish** (oppe til høyre)
 
-Bruk `SUPABASE_PROJECT_REF` (foretrukket) eller `SUPABASE_PROJECT_ID` (alias). 
+✅ **FERDIG!** Alle fremtidige oppdateringer skjer automatisk via jsDelivr CDN.
 
-```bash
-export SUPABASE_PROJECT_REF=swfyuwkptusceiouqlks
-export SUPABASE_ACCESS_TOKEN=sbp_xxx
-export SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
-export SUPABASE_ANON_KEY=eyJ...
-export SUPABASE_SERVICE_ROLE_KEY=eyJ...
-export PPLX_API_KEY=pplx-...
-```
+## Daglig utvikling
 
-**Eller lag `.env` lokalt:**
+\`\`\`bash
+# Gjør endringer i web/klarpakke-site.js eller calculator.js
+git add .
+git commit -m "feat: ny funksjonalitet"  
+git push origin main
 
-```bash
-SUPABASE_PROJECT_REF=swfyuwkptusceiouqlks
-SUPABASE_ACCESS_TOKEN=sbp_xxx
-SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-PPLX_API_KEY=pplx-...
-```
+# ✅ CDN oppdateres automatisk innen 12 timer!
+# 🔥 Force update: legg til ?v=TIMESTAMP i CDN URL
+\`\`\`
 
-### 2. Kjør deploy
+## Test lokal
 
-```bash
-npm run deploy:backend
-```
-
-Alternativt:
-
-```bash
-bash scripts/deploy-backend.sh
-```
-
----
-
-## Hva som deployes
-
-- Database migrations (`supabase/migrations` → `supabase db deploy`).
-- Edge Functions (auto-deploy av alle mapper under `supabase/functions/*`).
-- Secrets (minimal env-fil → `supabase secrets set --env-file …`).
-- Verifisering (best-effort kall mot `debug-env`, hvis `SUPABASE_URL` er satt).
-
----
-
-## Lokal utvikling (1 click)
-
-```bash
-npm run one:click
-```
-
-Dette kjører `supabase start` + `supabase db reset` og forsøker demo-seed hvis `scripts/paper-seed.sh` finnes. 
-
----
-
-## Webflow / frontend
-
-Webflow-side-struktur og riktig DOM/IDs må lages i Designer (one-time), men JS-filene ligger klare i `web/` for injisering. 
-
----
-
-## GitHub Actions (CI/CD)
-
-**Canonical workflow:** `.github/workflows/supabase-backend-deploy.yml` (kjøres manuelt via `workflow_dispatch`).
-
-Legacy deploy-workflows er markert som “Deprecated” for å unngå dobbel deploy. 
-
----
-
-## Required GitHub Secrets
-
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_REF`
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `PPLX_API_KEY`
-
----
+\`\`\`bash
+cd ~/klarpakke
+npm run build:web
+open web/dist/klarpakke-site.js
+\`\`\`
 
 ## Troubleshooting
 
-### "Missing required environment variables"
+**Problem:** Script laster ikke
+- Sjekk Console (Cmd+Option+I): `[Klarpakke] Config loaded`
+- Verifiser CDN: https://cdn.jsdelivr.net/gh/tombomann/klarpakke@main/web/dist/klarpakke-site.js
+- Purge CDN: https://www.jsdelivr.com/tools/purge
 
-Sett minst:
-
-```bash
-export SUPABASE_PROJECT_REF=swfyuwkptusceiouqlks
-export SUPABASE_ACCESS_TOKEN=sbp_xxx
-```
-
-### "Supabase CLI not installed"
-
-```bash
-brew install supabase/tap/supabase
-```
-
----
-
-*Last updated: 28. januar 2026*
+**Problem:** Gamle endringer vises
+- jsDelivr cache: 12 timer
+- Force refresh: Cmd+Shift+R
+- Eller bruk versjon-tag i URL
