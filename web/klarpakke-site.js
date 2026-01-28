@@ -1,6 +1,6 @@
-// Klarpakke Site Engine v2.4
+// Klarpakke Site Engine v2.5
 // Webflow master script (landing + app)
-// Updates: Public-config fetch + automatic Binance referral wiring
+// Updates: Scoped handlers, self-test, version logging
 
 (function () {
   'use strict';
@@ -8,6 +8,9 @@
   // 1. Prevent double-execution
   if (window.__KLARPAKKE_SITE_ENGINE__) return;
   window.__KLARPAKKE_SITE_ENGINE__ = true;
+
+  const VERSION = '2.5.0';
+  const BUILD_DATE = '2026-01-28';
 
   const DEFAULTS = {
     debug: false,
@@ -105,7 +108,8 @@
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => res.statusText);
-        throw new Error(`API Error ${res.status}: ${errorText}`);
+        const shortError = errorText.slice(0, 120);
+        throw new Error(`HTTP ${res.status}: ${res.statusText}${shortError ? ' – ' + shortError : ''}`);
       }
 
       return await res.json();
@@ -176,13 +180,13 @@
 
   // 3. Robust Path Detection
   function getRoute() {
-    const raw = window.location.pathname.replace(/\/+$/, '') || '/';
+    const raw = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
     return {
       raw,
-      isDashboard: raw.endsWith('/dashboard'),
-      isSettings: raw.endsWith('/settings'),
-      isPricing: raw.endsWith('/pricing'),
-      isCalculator: raw.endsWith('/kalkulator') || raw.endsWith('/calculator'),
+      isDashboard: raw === '/app/dashboard' || raw.endsWith('/dashboard'),
+      isSettings: raw === '/app/settings' || raw.endsWith('/settings'),
+      isPricing: raw === '/pricing' || raw === '/app/pricing' || raw.endsWith('/pricing'),
+      isCalculator: raw === '/kalkulator' || raw === '/calculator' || raw.endsWith('/kalkulator') || raw.endsWith('/calculator'),
     };
   }
 
@@ -195,6 +199,57 @@
       return false;
     }
     return true;
+  }
+
+  // 4.1 Self-test (debug mode)
+  function selfTest(route) {
+    if (!config.debug) return;
+
+    logger.debug('Running self-test...');
+
+    const tests = [];
+
+    if (route.isDashboard) {
+      tests.push({ id: 'signals-container', required: true });
+    }
+
+    if (route.isSettings) {
+      tests.push({ id: 'save-settings', required: true });
+      tests.push({ id: 'plan-select', required: true });
+      tests.push({ id: 'compound-toggle', required: false });
+    }
+
+    if (route.isPricing) {
+      const pricingButtons = document.querySelectorAll('[data-plan]');
+      if (pricingButtons.length === 0) {
+        logger.warn('Self-test: No [data-plan] buttons found on pricing page');
+      } else {
+        logger.debug(`Self-test: Found ${pricingButtons.length} pricing buttons`);
+      }
+    }
+
+    if (route.isCalculator) {
+      tests.push({ id: 'calc-start', required: true });
+      tests.push({ id: 'calc-crypto-percent', required: true });
+      tests.push({ id: 'calc-plan', required: true });
+      tests.push({ id: 'calc-result-table', required: true });
+    }
+
+    tests.forEach((test) => {
+      const exists = !!document.getElementById(test.id);
+      if (!exists && test.required) {
+        logger.warn(`Self-test FAIL: Missing required #${test.id}`);
+      } else if (!exists) {
+        logger.debug(`Self-test: Optional #${test.id} not found`);
+      } else {
+        logger.debug(`Self-test OK: #${test.id}`);
+      }
+    });
+
+    // Check toast container
+    if (!document.getElementById('kp-toast')) {
+      logger.warn('Self-test: No #kp-toast found (will fallback to alert)');
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -224,8 +279,12 @@
         logger.info(`Loaded ${signals.length} signals`);
       } catch (err) {
         container.innerHTML =
-          '<div class="kp-error">Kunne ikke laste data. <button onclick="location.reload()">Prøv igjen</button></div>';
+          '<div class="kp-error">Kunne ikke laste data. <button class="kp-reload-btn">Prøv igjen</button></div>';
         toast('Feil ved lasting av signaler', 'error');
+        
+        // Attach reload handler (scoped)
+        const reloadBtn = container.querySelector('.kp-reload-btn');
+        if (reloadBtn) reloadBtn.addEventListener('click', () => location.reload());
       }
     }
 
@@ -237,7 +296,7 @@
             <h3>${s.symbol} <span class="badge ${s.direction.toLowerCase()}">${s.direction}</span></h3>
             <span class="confidence" title="AI Confidence">${conf}%</span>
           </div>
-          <p>${s.reason}</p>
+          <p>${s.reason || 'N/A'}</p>
           <div class="actions">
             <button class="btn-approve" data-action="APPROVE" data-id="${s.id}">Approve</button>
             <button class="btn-reject" data-action="REJECT" data-id="${s.id}">Reject</button>
@@ -286,12 +345,21 @@
     logger.info('Initializing Settings...');
     if (!checkRequiredElements(['save-settings', 'plan-select'])) return;
 
-    document.getElementById('save-settings').addEventListener('click', async () => {
-      const plan = document.getElementById('plan-select').value;
-      const compound = document.getElementById('compound-toggle')?.checked || false;
+    const saveBtn = document.getElementById('save-settings');
+    const planSelect = document.getElementById('plan-select');
+    const compoundToggle = document.getElementById('compound-toggle');
 
-      // Todo: Replace 'demo-user' with actual auth user when Auth implemented
+    saveBtn.addEventListener('click', async () => {
+      const plan = planSelect.value;
+      const compound = compoundToggle?.checked || false;
+
+      // UI feedback
+      const originalText = saveBtn.innerText;
+      saveBtn.disabled = true;
+      saveBtn.innerText = 'Lagrer...';
+
       try {
+        // Todo: Replace 'demo-user' with actual auth user when Auth implemented
         await fetchJson('/functions/v1/update-user-settings', {
           method: 'POST',
           body: JSON.stringify({ user_id: 'demo-user', plan, compounding_enabled: compound }),
@@ -299,20 +367,32 @@
         toast('Innstillinger lagret ✅', 'success');
       } catch (err) {
         // Fallback to local storage if offline/no-auth
+        logger.warn('Falling back to localStorage:', err);
         localStorage.setItem('kp_settings', JSON.stringify({ plan, compound }));
         toast('Lagret lokalt (frakoblet)', 'warning');
+      } finally {
+        saveBtn.innerText = originalText;
+        saveBtn.disabled = false;
       }
     });
   }
 
   function initPricing() {
     logger.info('Initializing Pricing logic...');
-    // Listen to all clicks, check for data-plan attribute
-    document.body.addEventListener('click', (e) => {
+    
+    // More defensive: only attach to pricing section if it exists
+    const pricingSection = document.querySelector('[data-kp-pricing]') || document.body;
+    
+    // Listen to clicks within pricing context
+    pricingSection.addEventListener('click', (e) => {
       const target = e.target.closest('[data-plan]');
       if (!target) return;
 
+      e.preventDefault();
       const plan = target.dataset.plan;
+      
+      logger.debug(`Pricing: Selected plan = ${plan}`);
+      
       if (plan === 'extrem') {
         location.href = '/opplaering?quiz=start';
       } else {
@@ -327,8 +407,12 @@
 
   function boot() {
     const route = getRoute();
-    logger.info(`Booting on route: ${route.raw}`);
+    logger.info(`Site Engine v${VERSION} (${BUILD_DATE})`);
+    logger.info(`Route: ${route.raw}`);
     logger.debug('Config loaded:', config);
+
+    // Self-test in debug mode
+    selfTest(route);
 
     // Global marketing wiring (safe no-op if missing)
     initMarketing();
