@@ -186,160 +186,155 @@ jobs:
           
           echo "🎨 Generating Webflow loader..."
           
-          # Generate inline loader
-          LOADER_HTML=$(cat <<'LOADER_EOF'
-          <script>
-          // Klarpakke Auto-Loader v2 (CI/CD)
-          // Deployed: $(date -u "+%Y-%m-%d %H:%M:%S UTC")
-          // Commit: ${{ github.sha }}
-          
+          # Generate inline loader (raw HTML for footer)
+          LOADER_HTML='<script>
           (function() {
-            'use strict';
-            
+            "use strict";
             window.KLARPAKKE_CONFIG = {
-              supabaseUrl: '${{ secrets.SUPABASE_URL }}',
-              supabaseAnonKey: '${{ secrets.SUPABASE_ANON_KEY }}',
-              version: '${{ github.sha }}',
+              supabaseUrl: "${{ secrets.SUPABASE_URL }}",
+              supabaseAnonKey: "${{ secrets.SUPABASE_ANON_KEY }}",
+              version: "${{ github.sha }}",
               debug: false
             };
-            
-            console.log('[Klarpakke] Config loaded', window.KLARPAKKE_CONFIG.version);
-            
-            const CDN_BASE = 'https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/dist';
-            
-            // Load main site script
-            const mainScript = document.createElement('script');
-            mainScript.src = CDN_BASE + '/klarpakke-site.js';
-            mainScript.async = true;
-            mainScript.onload = () => console.log('[Klarpakke] Main script loaded');
-            mainScript.onerror = () => console.error('[Klarpakke] Failed to load main script');
-            document.body.appendChild(mainScript);
-            
-            // Load calculator (only if on /kalkulator page)
-            if (window.location.pathname.includes('/kalkulator')) {
-              const calcScript = document.createElement('script');
-              calcScript.src = CDN_BASE + '/calculator.js';
-              calcScript.async = true;
-              calcScript.onload = () => console.log('[Klarpakke] Calculator loaded');
-              calcScript.onerror = () => console.error('[Klarpakke] Failed to load calculator');
-              document.body.appendChild(calcScript);
+            console.log("[Klarpakke] Config loaded", window.KLARPAKKE_CONFIG.version);
+            const CDN = "https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/dist";
+            function loadScript(src, name) {
+              const s = document.createElement("script");
+              s.src = src;
+              s.async = true;
+              s.onload = () => console.log("[Klarpakke] " + name + " loaded");
+              s.onerror = () => console.error("[Klarpakke] Failed: " + name);
+              document.body.appendChild(s);
+            }
+            loadScript(CDN + "/klarpakke-site.js", "Main");
+            if (window.location.pathname.includes("/kalkulator")) {
+              loadScript(CDN + "/calculator.js", "Calculator");
             }
           })();
-          </script>
-          LOADER_EOF
-          )
+          </script>'
           
           echo "📤 Attempting Webflow API v2 deployment..."
           
+          # Escape for JSON (simple approach for this specific case)
           LOADER_JSON=$(printf '%s' "$LOADER_HTML" | jq -Rs '.')
           
-          # v2 API payload
-          V2_PAYLOAD=$(cat <<EOF
-          {
-            "scripts": [
-              {
-                "location": "footer",
-                "code": ${LOADER_JSON}
-              }
-            ]
-          }
-          EOF
-          )
+          # v2 API payload (correct structure: headCode + footerCode)
+          V2_PAYLOAD=$(jq -n \
+            --arg footer "$LOADER_HTML" \
+            '{headCode: "", footerCode: $footer}')
+          
+          echo "Payload preview (first 200 chars):"
+          echo "$V2_PAYLOAD" | head -c 200
+          echo ""
           
           # Try v2 API first
+          echo "Calling v2 API endpoint..."
           V2_RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X PUT \
             "https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/custom_code" \
             -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "$V2_PAYLOAD" 2>&1) || true
+            -d "$V2_PAYLOAD" 2>&1) || V2_RESPONSE="CURL_ERROR:$?"
           
-          HTTP_CODE=$(echo "$V2_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+          HTTP_CODE=$(echo "$V2_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2 || echo "000")
           RESPONSE_BODY=$(echo "$V2_RESPONSE" | sed '/HTTP_STATUS:/d')
           
-          # Check if v2 succeeded
-          if [[ "$HTTP_CODE" == "200" ]] && echo "$RESPONSE_BODY" | jq -e '.id' > /dev/null 2>&1; then
+          # Check if v2 succeeded (200 or 204)
+          if [[ "$HTTP_CODE" =~ ^(200|204)$ ]]; then
             echo "✅ Custom Code updated via API v2"
             API_VERSION="v2"
-          # Check if it's an authorization error (v1 token being used)
-          elif [[ "$HTTP_CODE" == "401" ]] || [[ "$HTTP_CODE" == "403" ]] || echo "$RESPONSE_BODY" | grep -iq "not authorized.*version"; then
-            echo "⚠️  v2 API not authorized (likely using v1 token)"
+          # Check if it's a version authorization error
+          elif [[ "$HTTP_CODE" == "403" ]] && echo "$RESPONSE_BODY" | grep -qi "not authorized.*version\|invalid_auth_version"; then
+            echo "⚠️  Token not authorized for v2 API"
+            echo "    Error: $RESPONSE_BODY"
             echo "🔄 Falling back to API v1..."
             
-            # v1 API payload (different structure)
-            V1_PAYLOAD=$(cat <<EOF
-          {
-            "customCode": {
-              "footer": ${LOADER_JSON}
-            }
-          }
-          EOF
-            )
+            # v1 API payload (different structure + different endpoint)
+            V1_PAYLOAD=$(jq -n \
+              --arg footer "$LOADER_HTML" \
+              '{customCode: {footer: $footer}}')
             
-            # Try v1 API
+            # Try v1 API (different endpoint: /sites/{id} not /sites/{id}/custom_code)
+            echo "Calling v1 API endpoint..."
             V1_RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X PUT \
-              "https://api.webflow.com/sites/${WEBFLOW_SITE_ID}/custom-code" \
+              "https://api.webflow.com/sites/${WEBFLOW_SITE_ID}" \
               -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
               -H "Content-Type: application/json" \
               -H "accept-version: 1.0.0" \
               -d "$V1_PAYLOAD" 2>&1)
             
-            V1_HTTP_CODE=$(echo "$V1_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+            V1_HTTP_CODE=$(echo "$V1_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2 || echo "000")
             V1_RESPONSE_BODY=$(echo "$V1_RESPONSE" | sed '/HTTP_STATUS:/d')
             
-            if [[ "$V1_HTTP_CODE" == "200" ]]; then
+            if [[ "$V1_HTTP_CODE" =~ ^(200|204)$ ]]; then
               echo "✅ Custom Code updated via API v1 (legacy)"
-              echo "⚠️  RECOMMENDATION: Migrate to v2 Site Token"
-              echo "   See: https://developers.webflow.com/data/docs/migrating-to-v2"
+              echo ""
+              echo "⚠️  MIGRATION RECOMMENDED:"
+              echo "   Your token only supports v1 API (deprecated)"
+              echo "   Generate a new Site Token with v2 access:"
+              echo "   https://developers.webflow.com/data/docs/getting-started"
               API_VERSION="v1"
             else
-              echo "❌ Both v2 and v1 API calls failed"
-              echo "v2 Response ($HTTP_CODE): $RESPONSE_BODY"
-              echo "v1 Response ($V1_HTTP_CODE): $V1_RESPONSE_BODY"
+              echo "❌ Both v2 and v1 API calls failed!"
+              echo ""
+              echo "v2 Response (HTTP $HTTP_CODE):"
+              echo "$RESPONSE_BODY" | jq '.' 2>/dev/null || echo "$RESPONSE_BODY"
+              echo ""
+              echo "v1 Response (HTTP $V1_HTTP_CODE):"
+              echo "$V1_RESPONSE_BODY" | jq '.' 2>/dev/null || echo "$V1_RESPONSE_BODY"
               exit 1
             fi
           else
             echo "❌ Unexpected error from Webflow API v2 (HTTP $HTTP_CODE):"
-            echo "$RESPONSE_BODY" | jq -r '.message // .' || echo "$RESPONSE_BODY"
+            echo "$RESPONSE_BODY" | jq '.' 2>/dev/null || echo "$RESPONSE_BODY"
             exit 1
           fi
           
           echo ""
           echo "📣 Publishing Webflow site..."
           
-          # Publish (try v2 first, then v1)
+          # Publish (different endpoints for v1/v2)
           if [[ "$API_VERSION" == "v2" ]]; then
+            echo "Using v2 publish endpoint..."
             PUBLISH_RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X POST \
               "https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/publish" \
               -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
               -H "Content-Type: application/json" \
-              -d '{"domains": ["*.webflow.io"]}' 2>&1)
+              -d '{}' 2>&1)
             
-            PUB_HTTP_CODE=$(echo "$PUBLISH_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+            PUB_HTTP_CODE=$(echo "$PUBLISH_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2 || echo "000")
             PUB_BODY=$(echo "$PUBLISH_RESPONSE" | sed '/HTTP_STATUS:/d')
             
-            if [[ "$PUB_HTTP_CODE" == "200" ]] && echo "$PUB_BODY" | jq -e '.publishedAt' > /dev/null 2>&1; then
-              PUBLISHED_AT=$(echo "$PUB_BODY" | jq -r '.publishedAt')
-              echo "✅ Site published (v2) at: $PUBLISHED_AT"
+            if [[ "$PUB_HTTP_CODE" =~ ^(200|202)$ ]]; then
+              echo "✅ Site published (v2)"
+              echo "$PUB_BODY" | jq -r '.publishedAt // "Queued"' 2>/dev/null || echo "Published"
             else
               echo "⚠️  Publish may have failed (v2):"
-              echo "$PUB_BODY" | jq -r '.message // .' || echo "$PUB_BODY"
+              echo "$PUB_BODY" | jq '.' 2>/dev/null || echo "$PUB_BODY"
             fi
           else
             # v1 publish
+            echo "Using v1 publish endpoint..."
             PUBLISH_RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" -X POST \
               "https://api.webflow.com/sites/${WEBFLOW_SITE_ID}/publish" \
               -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
               -H "accept-version: 1.0.0" 2>&1)
             
-            PUB_HTTP_CODE=$(echo "$PUBLISH_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
+            PUB_HTTP_CODE=$(echo "$PUBLISH_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2 || echo "000")
             PUB_BODY=$(echo "$PUBLISH_RESPONSE" | sed '/HTTP_STATUS:/d')
             
-            if [[ "$PUB_HTTP_CODE" == "200" ]] && echo "$PUB_BODY" | grep -q '"queued":true'; then
-              echo "✅ Site published (v1 - queued)"
+            if [[ "$PUB_HTTP_CODE" =~ ^(200|202)$ ]]; then
+              echo "✅ Site published (v1)"
             else
-              echo "⚠️  Publish response (v1): $PUB_BODY"
+              echo "⚠️  Publish response (v1):"
+              echo "$PUB_BODY" | jq '.' 2>/dev/null || echo "$PUB_BODY"
             fi
           fi
+          
+          echo ""
+          echo "🎉 Webflow deployment complete!"
+          echo "   API Version: $API_VERSION"
+          echo "   Commit: ${{ github.sha }}"
+          echo "   CDN: https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/dist"
 
       - name: 📊 Generate Webflow Summary
         run: |
@@ -352,7 +347,7 @@ jobs:
           CDN: https://cdn.jsdelivr.net/gh/tombomann/klarpakke@${{ github.sha }}/web/dist
           
           ✅ Webflow Custom Code Updated
-          ✅ Site Published to *.webflow.io
+          ✅ Site Published
           
           TEST INSTRUCTIONS:
           1. Open DevTools (F12) → Console
@@ -363,9 +358,11 @@ jobs:
              - /app/dashboard
              - /kalkulator
           
-          MIGRATION NOTICE:
-          If you see "API v1 (legacy)" above, consider upgrading to v2 token:
-          https://developers.webflow.com/data/docs/migrating-to-v2
+          TROUBLESHOOTING:
+          - Check browser console for errors
+          - Verify CDN files load: check Network tab
+          - If v1 API was used, consider upgrading token:
+            https://developers.webflow.com/data/docs/migrating-to-v2
           ═══════════════════════════════════════════════════════════
           EOF
           cat webflow-summary.txt
