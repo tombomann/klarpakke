@@ -1,16 +1,27 @@
 #!/bin/bash
+set -euo pipefail
+
 echo "🚀 KLARPAKKE SUPER DEPLOY - FULL AUTO"
 
-# 1. Push lokale changes
-git add .
-git commit -m "Auto-deploy Webflow DOM fix" || true
-git push origin main
+# This script is meant to run locally.
+# Do NOT use ${{ secrets.* }} here; that syntax only works in GitHub Actions.
 
-# 2. Trigger Webflow builder
-curl -X POST \
-  -H "Authorization: token \${{ secrets.GITHUB_TOKEN }}" \
-  https://api.github.com/repos/tombomann/klarpakke/actions/workflows/webflow-builder.yml/dispatches \
-  -d '{"ref":"main"}'
+# 1) Push local changes (optional)
+if git diff --quiet && git diff --cached --quiet; then
+  echo "No local changes to commit."
+else
+  git add .
+  git commit -m "Auto-deploy" || true
+fi
 
-echo "✅ Deploy started! Check: https://github.com/tombomann/klarpakke/actions"
-echo "🧪 Live: https://klarpakke-c65071.webflow.io/app/dashboard"
+git push origin HEAD
+
+# 2) Trigger 1-click deploy workflow on main
+if command -v gh >/dev/null 2>&1; then
+  gh workflow run klarpakke-deploy.yml --ref main --field target=staging
+  echo "✅ Deploy triggered. Check: https://github.com/tombomann/klarpakke/actions"
+else
+  echo "❌ GitHub CLI (gh) not found. Install it, then run:"
+  echo "   gh workflow run klarpakke-deploy.yml --ref main --field target=staging"
+  exit 1
+fi
