@@ -48,7 +48,7 @@ const WEBFLOW_LOADER_TEMPLATE = `
       script.async = true;
       
       const timer = setTimeout(() => {
-        reject(new Error(`Script load timeout: \${src}`));
+        reject(new Error('Script load timeout: ' + src));
       }, timeout);
 
       script.onload = () => {
@@ -59,7 +59,7 @@ const WEBFLOW_LOADER_TEMPLATE = `
 
       script.onerror = () => {
         clearTimeout(timer);
-        reject(new Error(`Failed to load: \${src}`));
+        reject(new Error('Failed to load: ' + src));
       };
 
       document.body.appendChild(script);
@@ -101,17 +101,17 @@ function generateLoader() {
   const debug = process.env.DEBUG === 'true' ? 'true' : 'false';
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('\u26a0\ufe0f  Warning: Missing Supabase environment variables');
+    console.warn('⚠️  Warning: Missing Supabase environment variables');
     console.warn('  Expected: SUPABASE_URL, SUPABASE_ANON_KEY');
   }
 
   let loader = WEBFLOW_LOADER_TEMPLATE
-    .replace('{VERSION}', version)
-    .replace('{TIMESTAMP}', timestamp)
-    .replace('{SUPABASE_URL}', supabaseUrl)
-    .replace('{SUPABASE_ANON_KEY}', supabaseAnonKey)
-    .replace('{CDN_URL}', cdnUrl)
-    .replace('{DEBUG}', debug);
+    .replace(/{VERSION}/g, version)
+    .replace(/{TIMESTAMP}/g, timestamp)
+    .replace(/{SUPABASE_URL}/g, supabaseUrl)
+    .replace(/{SUPABASE_ANON_KEY}/g, supabaseAnonKey)
+    .replace(/{CDN_URL}/g, cdnUrl)
+    .replace(/{DEBUG}/g, debug);
 
   // Output path
   const outputDir = path.join(__dirname, '..', 'web', 'dist');
@@ -122,7 +122,7 @@ function generateLoader() {
   const outputPath = path.join(outputDir, 'webflow-loader.js');
   fs.writeFileSync(outputPath, loader);
 
-  console.log('\u2713 Webflow loader generated:');
+  console.log('✓ Webflow loader generated:');
   console.log(`  Path: ${outputPath}`);
   console.log(`  Size: ${loader.length} bytes`);
   console.log(`  Version: ${version}`);
@@ -133,14 +133,14 @@ function generateLoader() {
   console.log('2. Go to Custom Code > Footer');
   console.log('3. Paste this in Footer:');
   console.log('');
-  console.log(`<script src="${cdnUrl}/web/dist/webflow-loader.js"><\/script>`);
+  console.log(`<script src="${cdnUrl}/web/dist/webflow-loader.js"></script>`);
   console.log('');
   console.log('4. Save and publish');
 
   // Also output to web/loader.js for easy access
   const altPath = path.join(__dirname, '..', 'web', 'loader.js');
   fs.writeFileSync(altPath, loader);
-  console.log(`\u2713 Also saved to: ${altPath}`);
+  console.log(`✓ Also saved to: ${altPath}`);
 }
 
-generateLoa der();
+generateLoader();
