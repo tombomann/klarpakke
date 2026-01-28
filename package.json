@@ -13,7 +13,10 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
-    "deploy:backend": "bash scripts/deploy-backend.sh"
+    "deploy:backend": "bash scripts/deploy-backend.sh",
+    "build:web": "node scripts/build-web.js",
+    "deploy:webflow": "node scripts/gen-webflow-loader.js",
+    "ci:all": "npm run build:web && npm run deploy:webflow && npm run deploy:backend"
   },
   "repository": {
     "type": "git",
