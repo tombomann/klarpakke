@@ -51,11 +51,32 @@ TMP_ENV_FILE="$(mktemp)"
 cleanup() { rm -f "$TMP_ENV_FILE"; }
 trap cleanup EXIT
 
-# Add custom API keys and secrets (NOT SUPABASE_* vars)
-[[ -n "${PPLX_API_KEY:-}" ]] && echo "PPLX_API_KEY=${PPLX_API_KEY}" >> "$TMP_ENV_FILE"
-[[ -n "${STRIPE_SECRET_KEY:-}" ]] && echo "STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}" >> "$TMP_ENV_FILE"
-[[ -n "${WEBFLOW_API_TOKEN:-}" ]] && echo "WEBFLOW_API_TOKEN=${WEBFLOW_API_TOKEN}" >> "$TMP_ENV_FILE"
-[[ -n "${MAKE_API_TOKEN:-}" ]] && echo "MAKE_API_TOKEN=${MAKE_API_TOKEN}" >> "$TMP_ENV_FILE"
+# Allowlist of well-known custom secrets.
+# NOTE: These are pushed into Supabase Edge Function secrets at deploy time.
+CUSTOM_SECRET_VARS=(
+  PPLX_API_KEY
+  STRIPE_SECRET_KEY
+  WEBFLOW_API_TOKEN
+  MAKE_API_TOKEN
+
+  # Binance (referral/affiliate tracking config)
+  # These are not strictly "secrets", but storing them as Edge Function secrets
+  # keeps all runtime config in one place (and out of Webflow copy/paste).
+  BINANCE_REFERRAL_URL
+  BINANCE_REFERRAL_CODE
+  BINANCE_AFFILIATE_ID
+)
+
+for v in "${CUSTOM_SECRET_VARS[@]}"; do
+  val="${!v:-}"
+  [[ -n "$val" ]] && printf "%s=%s\n" "$v" "$val" >> "$TMP_ENV_FILE"
+done
+
+# Catch-all for future expansion: any env var starting with KP_SECRET_
+# Example: KP_SECRET_SOME_VENDOR_TOKEN=...
+while IFS='=' read -r k v; do
+  [[ "$k" == KP_SECRET_* ]] && printf "%s=%s\n" "$k" "$v" >> "$TMP_ENV_FILE"
+done < <(env)
 
 if [[ -s "$TMP_ENV_FILE" ]]; then
   echo "[deploy-backend] Setting Edge Function secrets…"
