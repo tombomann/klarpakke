@@ -19,10 +19,9 @@ echo "🔍 Validerer .env konfigurasjon..."
 echo "====================================="
 echo ""
 
-# Last .env
-set -a
-source .env
-set +a
+# Last .env (safe parser; does not execute .env as shell code)
+# shellcheck disable=SC1091
+source scripts/load-dotenv.sh .env
 
 # Validate SUPABASE_URL
 if [ -z "${SUPABASE_URL:-}" ]; then
@@ -111,11 +110,11 @@ echo -e "${GREEN}=========================================${NC}"
 echo ""
 echo "Neste steg:"
 echo "  1. Test Supabase tilkobling:"
-echo "     curl -X POST \"$SUPABASE_URL/functions/v1/debug-env\" \\"
-echo "       -H \"Authorization: Bearer $SUPABASE_ANON_KEY\" \\"
-echo "       -H \"Content-Type: application/json\" \\"
+echo "     curl -X POST \"$SUPABASE_URL/functions/v1/debug-env\" \\" 
+echo "       -H \"Authorization: Bearer $SUPABASE_ANON_KEY\" \\" 
+echo "       -H \"Content-Type: application/json\" \\" 
 echo "       -d '{\"test\": true}'"
 echo ""
 echo "  2. Deploy Edge Functions:"
-echo "     make deploy-all"
+echo "     npm run deploy:backend"
 echo ""

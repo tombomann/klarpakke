@@ -6,12 +6,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.."; pwd)"
 cd "$ROOT_DIR"
 
-# Load .env if present (local usage). In CI, prefer environment variables.
+# Load .env safely if present (local usage). In CI, prefer environment variables.
 if [[ -f .env ]]; then
-  set -a
   # shellcheck disable=SC1091
-  source .env
-  set +a
+  source scripts/load-dotenv.sh .env
 fi
 
 if ! command -v supabase >/dev/null 2>&1; then
