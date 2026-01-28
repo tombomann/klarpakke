@@ -73,7 +73,6 @@ jobs:
     needs: lint-and-build
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
@@ -86,12 +85,11 @@ jobs:
             echo "❌ ERROR: SUPABASE_ACCESS_TOKEN not set in Secrets"
             exit 1
           fi
-          if [[ -z "$SUPABASE_PROJECT_REF" ]]; then
+          if [[ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]]; then
             echo "❌ ERROR: SUPABASE_PROJECT_REF not set in Secrets"
             exit 1
           fi
           echo "✓ Secrets found"
-          echo "✓ Project Ref: ${SUPABASE_PROJECT_REF:0:5}..."
 
       - name: 🔧 Install Supabase CLI
         uses: supabase/setup-cli@v1
@@ -100,8 +98,22 @@ jobs:
 
       - name: 🔑 Link Supabase project
         run: |
-          echo "Linking to project: $SUPABASE_PROJECT_REF"
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          # CRITICAL FIX: Strip any whitespace/newlines from the secret
+          PROJECT_REF="$(echo -n "${{ secrets.SUPABASE_PROJECT_REF }}" | tr -d '[:space:]')"
+          echo "Cleaned Project Ref: ${PROJECT_REF:0:5}..."
+          echo "Length: ${#PROJECT_REF} chars"
+          
+          # Validate format before attempting link
+          if [[ ! "$PROJECT_REF" =~ ^[a-z]{20}$ ]]; then
+            echo "❌ ERROR: Invalid PROJECT_REF format!"
+            echo "   Expected: 20 lowercase letters (e.g., 'abcdefghijklmnopqrst')"
+            echo "   Got: '$PROJECT_REF' (${#PROJECT_REF} chars)"
+            echo "   Raw secret (escaped): $(echo "${{ secrets.SUPABASE_PROJECT_REF }}" | od -A n -t x1)"
+            exit 1
+          fi
+          
+          echo "✓ Project Ref validated: ${PROJECT_REF:0:5}..."
+          supabase link --project-ref "$PROJECT_REF"
 
       - name: 📝 Show pending migrations
         run: supabase migration list
