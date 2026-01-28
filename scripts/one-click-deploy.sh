@@ -1,216 +1,132 @@
-#!/bin/bash
-# Klarpakke One-Click Deploy (FULL AUTOMATION)
-# Deploys backend + frontend + seeds data + publishes Webflow
+#!/usr/bin/env bash
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Klarpakke One-Click Deploy (prod/staging)
+# Goal: from local machine → GitHub Secrets synced → run deploy workflows → watch until done.
+#
+# Requirements:
+# - gh (GitHub CLI) authenticated to repo
+# - .env present (or exported env vars)
+#
+# It intentionally does NOT print secret values.
 
-echo -e "${BLUE}"
-echo "═══════════════════════════════════════════════════════════"
-echo "  🚀 KLARPAKKE ONE-CLICK DEPLOY (v3.0)                    "
-echo "═══════════════════════════════════════════════════════════"
-echo -e "${NC}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 
-# Check required env vars
-REQUIRED_VARS=("SUPABASE_PROJECT_ID" "SUPABASE_ACCESS_TOKEN")
-MISSING_VARS=()
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing dependency: $1"; exit 1; }
+}
 
-for VAR in "${REQUIRED_VARS[@]}"; do
-  if [ -z "${!VAR:-}" ]; then
-    MISSING_VARS+=("$VAR")
-  fi
-done
+need_cmd gh
+need_cmd jq
 
-if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-  echo -e "${RED}❌ Missing required environment variables:${NC}"
-  for VAR in "${MISSING_VARS[@]}"; do
-    echo -e "   - $VAR"
-  done
-  echo ""
-  echo "Set them in your shell or .env file:"
-  echo "  export SUPABASE_PROJECT_ID=your_project_id"
-  echo "  export SUPABASE_ACCESS_TOKEN=your_token"
+# Load .env if present
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
+# --- Derive/normalize env vars ---
+
+# PROJECT_REF: prefer explicit, accept legacy SUPABASE_PROJECT_ID, derive from SUPABASE_URL if needed
+PROJECT_REF="${SUPABASE_PROJECT_REF:-${SUPABASE_PROJECT_ID:-}}"
+if [[ -z "${PROJECT_REF}" && -n "${SUPABASE_URL:-}" ]]; then
+  # https://<ref>.supabase.co → <ref>
+  tmp="${SUPABASE_URL#https://}"; tmp="${tmp#http://}"; tmp="${tmp%%.*}"
+  PROJECT_REF="$tmp"
+fi
+
+if [[ -z "${PROJECT_REF}" ]]; then
+  echo "❌ Missing SUPABASE_PROJECT_REF (or SUPABASE_PROJECT_ID) and could not derive from SUPABASE_URL"
   exit 1
 fi
 
-echo -e "${GREEN}✓ Environment variables loaded${NC}"
-echo ""
+# Service role: prefer SERVICE_ROLE_KEY; accept SECRET_KEY fallback
+SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-${SUPABASE_SECRET_KEY:-}}"
 
-# ═══════════════════════════════════════════════════════════
-# PHASE 1: SUPABASE BACKEND
-# ═══════════════════════════════════════════════════════════
-echo -e "${BLUE}[1/5] Deploying Supabase Edge Functions...${NC}"
+# public-config URL
+KLARPAKKE_PUBLIC_CONFIG_URL="${KLARPAKKE_PUBLIC_CONFIG_URL:-https://${PROJECT_REF}.supabase.co/functions/v1/public-config}"
 
-if ! command -v supabase &> /dev/null; then
-  echo -e "${RED}❌ Supabase CLI not installed. Install: brew install supabase/tap/supabase${NC}"
-  exit 1
-fi
+# --- Validate required values (non-empty) ---
 
-# Link project
-supabase link --project-ref "$SUPABASE_PROJECT_ID" 2>/dev/null || echo "Already linked"
-
-# Deploy all functions
-FUNCTIONS=("generate-trading-signal" "approve-signal" "analyze-signal" "update-positions" "serve-js" "debug-env")
-
-for FUNC in "${FUNCTIONS[@]}"; do
-  echo -e "  → Deploying ${FUNC}..."
-  supabase functions deploy "$FUNC" --no-verify-jwt 2>&1 | grep -E '(Deployed|Error|Failed)' || true
-done
-
-# Set secrets
-echo -e "  → Setting secrets..."
-if [ -f .env ]; then
-  while IFS='=' read -r key value; do
-    # Skip comments and empty lines
-    [[ $key =~ ^#.*$ ]] && continue
-    [[ -z $key ]] && continue
-    
-    # Remove quotes and whitespace
-    value=$(echo "$value" | sed -e 's/^["'"'"']*//' -e 's/["'"'"']*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    
-    if [ -n "$value" ]; then
-      supabase secrets set "${key}=${value}" --project-ref "$SUPABASE_PROJECT_ID" 2>/dev/null || echo "  ⚠️  Failed to set $key"
-    fi
-  done < .env
-  echo -e "${GREEN}✓ Secrets deployed${NC}"
-else
-  echo -e "${YELLOW}⚠️  No .env file found, skipping secrets${NC}"
-fi
-
-echo -e "${GREEN}✓ Phase 1 complete: Backend deployed${NC}"
-echo ""
-
-# ═══════════════════════════════════════════════════════════
-# PHASE 2: SEED DEMO DATA
-# ═══════════════════════════════════════════════════════════
-echo -e "${BLUE}[2/5] Seeding demo signals (paper trading)...${NC}"
-
-if [ -f scripts/paper-seed.sh ]; then
-  bash scripts/paper-seed.sh 2>&1 | tail -3
-  echo -e "${GREEN}✓ Demo signals created${NC}"
-else
-  echo -e "${YELLOW}⚠️  scripts/paper-seed.sh not found, skipping seed${NC}"
-fi
-
-echo ""
-
-# ═══════════════════════════════════════════════════════════
-# PHASE 3: WEBFLOW DEPLOY
-# ═══════════════════════════════════════════════════════════
-echo -e "${BLUE}[3/5] Deploying Webflow UI...${NC}"
-
-if [ -z "${WEBFLOW_API_TOKEN:-}" ]; then
-  echo -e "${YELLOW}⚠️  WEBFLOW_API_TOKEN not set${NC}"
-  echo -e "${YELLOW}   Manual step required:${NC}"
-  echo ""
-  echo "   1. Copy web/klarpakke-site.js to clipboard:"
-  echo "      cat web/klarpakke-site.js | pbcopy"
-  echo ""
-  echo "   2. Go to Webflow Designer > Project Settings > Custom Code"
-  echo "   3. Paste in 'Before </body>' section"
-  echo "   4. Save & Publish"
-  echo ""
-  echo -e "${YELLOW}   Or set WEBFLOW_API_TOKEN to automate this step${NC}"
-else
-  WEBFLOW_SITE_ID="${WEBFLOW_SITE_ID:-klarpakke-c65071}"
-  
-  # Read site JS
-  if [ -f web/klarpakke-site.js ]; then
-    SITE_JS=$(cat web/klarpakke-site.js)
-    
-    # Update site-wide custom code via API
-    echo -e "  → Updating site-wide custom code..."
-    curl -s -X PUT "https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/custom_code" \
-      -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
-      -H "Content-Type: application/json" \
-      -d "{\"scripts\": [{\"location\":\"footer\", \"code\":\"<script>${SITE_JS}</script>\"}]}" \
-      | grep -E '(id|error)' || echo "  ⚠️  API call may have failed"
-    
-    echo -e "${GREEN}✓ Webflow code updated${NC}"
-  else
-    echo -e "${RED}❌ web/klarpakke-site.js not found${NC}"
+req() {
+  local name="$1"
+  local val="${!name:-}"
+  if [[ -z "${val}" ]]; then
+    echo "❌ Missing required env var in .env (or shell): ${name}"
+    exit 1
   fi
-  
-  # Publish site
-  echo -e "  → Publishing to staging subdomain..."
-  PUBLISH_DOMAINS='["*.webflow.io"]'
-  
-  curl -s -X POST "https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/publish" \
-    -H "Authorization: Bearer ${WEBFLOW_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "{\"domains\": ${PUBLISH_DOMAINS}}" \
-    | grep -E '(publishedAt|error)' || echo "  ⚠️  Publish may have failed"
-  
-  echo -e "${GREEN}✓ Site published${NC}"
-fi
+}
 
-echo ""
+# Required for backend deploy workflow
+req SUPABASE_ACCESS_TOKEN
+req SUPABASE_URL
+req SUPABASE_ANON_KEY
+req SUPABASE_SERVICE_ROLE_KEY
+req PPLX_API_KEY
 
-# ═══════════════════════════════════════════════════════════
-# PHASE 4: CALCULATOR DEPLOY
-# ═══════════════════════════════════════════════════════════
-echo -e "${BLUE}[4/5] Deploying calculator...${NC}"
+# Required for webflow deploy workflow
+req WEBFLOW_API_TOKEN
+req WEBFLOW_SITE_ID
 
-if [ -f web/calculator.js ]; then
-  echo -e "  → Calculator code ready at: web/calculator.js"
-  echo -e "  → Manual step: Add to /kalkulator page in Webflow"
-  echo -e "${GREEN}✓ Calculator script available${NC}"
-else
-  echo -e "${RED}❌ web/calculator.js not found${NC}"
-fi
+# --- Sync GitHub Actions secrets (allowlist) ---
 
-echo ""
+TMP_ENV_FILE="$(mktemp)"
+cleanup() { rm -f "$TMP_ENV_FILE"; }
+trap cleanup EXIT
 
-# ═══════════════════════════════════════════════════════════
-# PHASE 5: VERIFICATION
-# ═══════════════════════════════════════════════════════════
-echo -e "${BLUE}[5/5] Running smoke tests...${NC}"
+cat > "$TMP_ENV_FILE" <<EOF
+SUPABASE_PROJECT_REF=${PROJECT_REF}
+SUPABASE_ACCESS_TOKEN=${SUPABASE_ACCESS_TOKEN}
+SUPABASE_URL=${SUPABASE_URL}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+PPLX_API_KEY=${PPLX_API_KEY}
+WEBFLOW_API_TOKEN=${WEBFLOW_API_TOKEN}
+WEBFLOW_SITE_ID=${WEBFLOW_SITE_ID}
+KLARPAKKE_PUBLIC_CONFIG_URL=${KLARPAKKE_PUBLIC_CONFIG_URL}
+EOF
 
-# Test Supabase connection
-echo -e "  → Testing Supabase Edge Function..."
-SUPABASE_URL="https://${SUPABASE_PROJECT_ID}.supabase.co"
-TEST_RESPONSE=$(curl -s -X POST "${SUPABASE_URL}/functions/v1/debug-env" \
-  -H "Authorization: Bearer ${SUPABASE_ANON_KEY:-dummy}" \
-  -H "Content-Type: application/json" \
-  -d '{"test": true}' || echo '{"error": "failed"}')
+echo "🔐 Syncing GitHub Actions secrets (allowlist)…"
+# gh supports dotenv env-file loading
+# Note: values are read from file; nothing is printed.
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  name="${line%%=*}"
+  echo "  - ${name}"
+done < "$TMP_ENV_FILE"
 
-if echo "$TEST_RESPONSE" | grep -q 'SUPABASE_PROJECT_ID'; then
-  echo -e "${GREEN}✓ Edge Functions responding${NC}"
-else
-  echo -e "${YELLOW}⚠️  Edge Functions may not be ready yet (can take 1-2 min)${NC}"
-fi
+gh secret set -f "$TMP_ENV_FILE"
 
-# Count signals
-echo -e "  → Checking demo signals..."
-if command -v psql &> /dev/null && [ -n "${DATABASE_URL:-}" ]; then
-  SIGNAL_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM signals WHERE status='pending';" 2>/dev/null | xargs || echo "0")
-  echo -e "    Found ${SIGNAL_COUNT} pending signals"
-else
-  echo -e "${YELLOW}    (psql not available, skipping DB check)${NC}"
-fi
+echo "✅ Secrets synced"
 
-echo ""
-echo -e "${GREEN}"
-echo "═══════════════════════════════════════════════════════════"
-echo "  ✅ DEPLOYMENT COMPLETE!                                  "
-echo "═══════════════════════════════════════════════════════════"
-echo -e "${NC}"
-echo ""
-echo "🌐 Your app is live at:"
-echo "   https://klarpakke-c65071.webflow.io/app/dashboard"
-echo ""
-echo "📊 Supabase Dashboard:"
-echo "   https://supabase.com/dashboard/project/${SUPABASE_PROJECT_ID}"
-echo ""
-echo "📋 Next steps:"
-echo "   1. Test: Open dashboard and click 'Approve' on a signal"
-echo "   2. Check: Verify calculator at /kalkulator"
-echo "   3. Monitor: GitHub Actions for ongoing syncs"
-echo ""
-echo "🔧 To redeploy:"
-echo "   make deploy-all"
-echo ""
+# --- Trigger workflows ---
+
+trigger_and_watch() {
+  local workflow="$1"
+  echo "🚀 Trigger: $workflow"
+  gh workflow run "$workflow" --ref main
+
+  # give GitHub a moment to register the run
+  sleep 2
+
+  # get latest run id
+  local run_id
+  run_id=$(gh run list --workflow "$workflow" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+  if [[ -z "$run_id" ]]; then
+    echo "⚠️  Could not resolve run id for $workflow (gh version?). Open Actions UI or run: gh run list --workflow=\"$workflow\""
+    return 1
+  fi
+
+  echo "👀 Watching run: $run_id"
+  gh run watch "$run_id" --exit-status
+}
+
+# Order matters: backend first, then webflow, then healthcheck
+trigger_and_watch ".github/workflows/supabase-backend-deploy.yml"
+trigger_and_watch ".github/workflows/webflow-deploy.yml"
+trigger_and_watch ".github/workflows/healthcheck-webflow-loader.yml"
+
+echo "✅ One-click deploy complete"
