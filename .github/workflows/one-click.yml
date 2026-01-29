@@ -1,0 +1,167 @@
+name: 🧨 One-Click (Full Stack)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy target'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      use_ai:
+        description: 'Use Perplexity (PPLX_API_KEY) for content/SEO generation (fallback if missing)'
+        required: true
+        default: true
+        type: boolean
+      pages:
+        description: 'Pages to process (all or comma-separated). NOTE: page creation requires Designer extension.'
+        required: true
+        default: 'all'
+        type: string
+      skip_webflow:
+        description: 'Skip Webflow deploy/publish + CMS sync'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  one-click:
+    name: 🚀 Deploy + CMS Sync + Health
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install deps
+        run: npm ci
+
+      - name: 🔐 Verify required secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+          WEBFLOW_SIGNALS_COLLECTION_ID: ${{ secrets.WEBFLOW_SIGNALS_COLLECTION_ID }}
+        run: |
+          set -e
+          echo "Checking required secrets..."
+          for k in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF SUPABASE_URL SUPABASE_ANON_KEY; do
+            if [ -z "${!k}" ]; then echo "❌ Missing $k"; exit 1; fi
+          done
+
+          if [ "${{ inputs.skip_webflow }}" != "true" ]; then
+            for k in WEBFLOW_API_TOKEN WEBFLOW_SITE_ID WEBFLOW_SIGNALS_COLLECTION_ID; do
+              if [ -z "${!k}" ]; then echo "❌ Missing $k"; exit 1; fi
+            done
+          else
+            echo "ℹ️ skip_webflow=true → skipping Webflow secret checks"
+          fi
+
+          echo "✅ Secrets OK"
+
+      - name: 📋 Lint web scripts
+        run: |
+          node -c web/klarpakke-site.js
+          node -c web/calculator.js
+          node -c web/klarpakke-ui.js
+
+      - name: 🏗️ Build web bundles
+        run: npm run build:web
+
+      # ─────────────────────────────────────────────
+      # Supabase deploy
+      # ─────────────────────────────────────────────
+      - name: 🔧 Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: 🔑 Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -e
+          PROJECT_REF="$(echo -n "$SUPABASE_PROJECT_REF" | tr -d '[:space:]')"
+          if [[ ! "$PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "❌ Invalid SUPABASE_PROJECT_REF format (expected 20 lowercase alnum)";
+            exit 1
+          fi
+          supabase link --project-ref "$PROJECT_REF"
+
+      - name: 🚀 Deploy migrations
+        run: |
+          if [[ -d supabase/migrations ]]; then
+            supabase db push --linked || true
+          else
+            echo "No migrations folder, skipping"
+          fi
+
+      - name: 📤 Deploy Edge Functions
+        run: bash scripts/deploy-functions.sh || true
+
+      # ─────────────────────────────────────────────
+      # Webflow + AI (Perplexity) steps
+      # ─────────────────────────────────────────────
+      - name: 🤖 AI (Perplexity) - generate IDs + SEO artifacts
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+          PPLX_API_KEY: ${{ inputs.use_ai == true && secrets.PPLX_API_KEY || '' }}
+        run: |
+          echo "Pages input: ${{ inputs.pages }}"
+          echo "NOTE: Page creation requires Designer extension; this step only generates artifacts/metadata."
+          npm run ai:generate-ids
+          npm run ai:seo-optimize
+
+      - name: 🎨 Deploy to Webflow (custom code + publish)
+        if: ${{ inputs.skip_webflow != true }}
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # Reuse same deploy logic as auto-deploy.yml does: generate runtime loader & push to Webflow custom code.
+          npm run deploy:webflow
+          npm run deploy:webflow:ui || true
+
+      - name: 🔄 Sync Supabase → Webflow CMS
+        if: ${{ inputs.skip_webflow != true }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SIGNALS_COLLECTION_ID: ${{ secrets.WEBFLOW_SIGNALS_COLLECTION_ID }}
+        run: node scripts/sync-supabase-to-webflow-v2.js
+
+      - name: 🏥 Health check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+        run: node scripts/health-check.js
+
+      - name: 📤 Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-click-artifacts
+          path: |
+            docs/WEBFLOW-ELEMENT-IDS.md
+          retention-days: 14
