@@ -1,0 +1,195 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║         🎨 KLARPAKKE WEBFLOW SETUP - 25 MINUTE CHECKLIST                ║
+║                                                                           ║
+║              Read: webflow-manual-setup.md (open in IDE/browser)         ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+⏱️  ESTIMATED TIME: 25 MINUTES TOTAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+ STEP 1️⃣  OPEN WEBFLOW DESIGNER (2 MIN)
+ ─────────────────────────────────────
+
+[ ] Go to webflow.com
+[ ] Click "Klarpakke" project  
+[ ] Click "Designer" button
+[ ] See "Pricing" page in Pages panel ✓
+
+
+ STEP 2️⃣  CREATE 6 MISSING PAGES (20 MIN - ~3 MIN EACH)
+ ─────────────────────────────────────────────────────────
+
+   PAGE 1: Home (index) - 3 MIN
+   ───────────────────────────
+   [ ] Right-click Pages → New Page
+   [ ] Name: "Home", Slug: "index", Create
+   [ ] Copy HTML from webflow-manual-setup.md
+   [ ] Paste into page body
+   [ ] Page Settings (⚙️) → Custom Code → Head
+   [ ] Paste Head code from guide
+   [ ] Save
+   ✓ DONE: Home page created
+
+
+   PAGE 2: Dashboard (app/dashboard) - 3 MIN
+   ─────────────────────────────────────────
+   [ ] Right-click Pages → New Page
+   [ ] Name: "Dashboard", Slug: "app/dashboard", Create
+   [ ] Copy HTML from webflow-manual-setup.md
+   [ ] Paste into page body
+   [ ] Page Settings (⚙️) → Custom Code
+   [ ] Head code: <script src="..."></script> + title
+   [ ] Footer code: <script src="/scripts/klarpakke-site.js"></script>
+   [ ] Save
+   ✓ DONE: Dashboard page created
+
+
+   PAGE 3: Kalkulator (app/kalkulator) - 3 MIN
+   ──────────────────────────────────────────
+   [ ] Right-click Pages → New Page
+   [ ] Name: "Kalkulator", Slug: "app/kalkulator", Create
+   [ ] Copy HTML from webflow-manual-setup.md
+   [ ] Paste into page body
+   [ ] Page Settings (⚙️) → Custom Code
+   [ ] Head code: loader script + title
+   [ ] Footer code: calculator.js
+   [ ] Save
+   ✓ DONE: Kalkulator page created
+
+
+   PAGE 4: Settings (app/settings) - 3 MIN
+   ──────────────────────────────────────
+   [ ] Right-click Pages → New Page
+   [ ] Name: "Settings", Slug: "app/settings", Create
+   [ ] Copy HTML from webflow-manual-setup.md
+   [ ] Paste into page body
+   [ ] Page Settings (⚙️) → Custom Code → Head
+   [ ] Paste Head code
+   [ ] Save
+   ✓ DONE: Settings page created
+
+
+   PAGE 5: Login (/login) - 3 MIN
+   ────────────────────────────
+   [ ] Right-click Pages → New Page
+   [ ] Name: "Login", Slug: "login", Create
+   [ ] Copy HTML from webflow-manual-setup.md
+   [ ] Paste into page body
+   [ ] Page Settings (⚙️) → Custom Code
+   [ ] Head code: loader script + title
+   [ ] Footer code: supabase-auth.js
+   [ ] Save
+   ✓ DONE: Login page created
+
+
+   PAGE 6: Signup (/signup) - 3 MIN
+   ───────────────────────────────
+   [ ] Right-click Pages → New Page
+   [ ] Name: "Sign Up", Slug: "signup", Create
+   [ ] Copy HTML from webflow-manual-setup.md
+   [ ] Paste into page body
+   [ ] Page Settings (⚙️) → Custom Code
+   [ ] Head code: loader script + title
+   [ ] Footer code: supabase-auth.js
+   [ ] Save
+   ✓ DONE: Signup page created
+
+
+ STEP 3️⃣  RE-RUN BUILD SCRIPT (1 MIN)
+ ─────────────────────────────────────
+
+[ ] Go back to Terminal
+[ ] Run: npm run ai:webflow-full
+[ ] Wait for completion
+[ ] Should show: "Found 7 existing pages"
+[ ] Should show: "Created: 0, Skipped: 7" (all pages exist now)
+✓ DONE: Content injected into all pages
+
+
+ STEP 4️⃣  DEPLOY (2 MIN)
+ ────────────────────
+
+[ ] Run: npm run deploy:prod
+[ ] Wait for completion
+[ ] Check Webflow is published
+✓ DONE: Site is live!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 
+ ✨ ALL DONE! Your Klarpakke site is now live and automated! 🚀
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+📚 REFERENCE FILES
+ ─────────────────
+
+ • webflow-manual-setup.md  ← Open this for detailed instructions + HTML
+ • docs/WEBFLOW-MCP-FIXED.md  ← Read this to understand how automation works
+ • docs/ONE-CLICK-DEPLOY.md  ← Full deployment reference
+
+
+❓ QUESTIONS?
+ ────────────
+
+ Q: Why do I need to create pages manually?
+ A: Your Webflow API token has limited Designer access. Once pages exist,
+    all automation (content, IDs, deployment) will work automatically.
+
+ Q: How long will this take?
+ A: 25 minutes total. ~3 min per page + 1 min build + 2 min deploy.
+
+ Q: What if I make a mistake?
+ A: You can edit pages anytime. Just re-run: npm run ai:webflow-full
+
+ Q: Can I do this faster?
+ A: Yes! Open webflow-manual-setup.md in a browser tab while you create pages.
+    Copy-paste the HTML directly.
+
+
+🎯 KEY REMINDERS
+ ────────────────
+
+ 1. Copy HTML exactly from webflow-manual-setup.md
+ 2. Add custom code via Page Settings (⚙️) not page elements
+ 3. Save after each page
+ 4. Wait 30 sec after creating all pages before re-running script
+ 5. Check terminal output for success messages
+
+
+✅ SUCCESS CRITERIA
+ ──────────────────
+
+ After Step 2 (creating pages):
+   ✓ 6 new pages exist in Pages panel
+   ✓ Each page has custom code in Head/Footer
+   ✓ No error messages in browser console
+
+ After Step 3 (re-run script):
+   ✓ Output shows: "Found 7 existing pages"
+   ✓ Output shows: "Skipped: 7"
+   ✓ No failed items
+
+ After Step 4 (deploy):
+   ✓ npm script completes without errors
+   ✓ Webflow site is published
+   ✓ https://klarpakke.webflow.io loads correctly
+
+
+🚀 READY? START WITH:
+ ──────────────────────
+
+ 1. Open: webflow-manual-setup.md
+ 2. Go to: webflow.com → Klarpakke → Designer
+ 3. Create first page (Home)
+ 4. Follow checklist for remaining 5 pages
+ 5. Return to terminal and run: npm run ai:webflow-full
+ 6. Deploy: npm run deploy:prod
+
+
+Good luck! You've got this! 💪
