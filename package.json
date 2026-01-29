@@ -23,6 +23,7 @@
     "deploy:webflow:ui": "node scripts/deploy-webflow-ui.js",
     "docs": "bash scripts/auto-generate-docs.sh",
     "webflow:setup": "bash scripts/webflow-full-setup.sh",
+    "webflow:create-pages": "node scripts/create-webflow-pages.js",
     "webflow:sync": "node scripts/sync-supabase-to-webflow-v2.js",
     "webflow:auto-setup": "node scripts/webflow-auto-create-collections.js",
     "webflow:validate": "node scripts/webflow-validate-setup.js",
