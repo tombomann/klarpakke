@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Allow execution
+# chmod +x scripts/bootstrap-mac-m1.sh
+# Run: ./scripts/bootstrap-mac-m1.sh
+
+echo "✓ Script is executable"
