@@ -1,6 +1,6 @@
 {
   "name": "klarpakke",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "> **Status:** LOCKED FOR PRODUCTION (V1)   > **Role:** Safety-First Trading System for Retail Investors   > **Key Principle:** Survival > Profit",
   "main": "index.js",
   "directories": {
@@ -26,6 +26,10 @@
     "webflow:auto-setup": "node scripts/webflow-auto-create-collections.js",
     "webflow:validate": "node scripts/webflow-validate-setup.js",
     "webflow:generate-snippets": "node scripts/webflow-generate-snippets.js",
+    "ai:build-pages": "node scripts/ai-build-webflow-pages.js",
+    "ai:generate-ids": "node scripts/generate-element-ids.js",
+    "ai:seo-optimize": "node scripts/seo-optimize-pages.js",
+    "ai:webflow-full": "npm run ai:build-pages && npm run ai:generate-ids && npm run ai:seo-optimize",
     "secrets:validate": "bash scripts/validate-all-secrets.sh",
     "secrets:push-supabase": "bash scripts/secrets-push-to-supabase.sh",
     "secrets:push-github": "bash scripts/secrets-push-to-github.sh",
@@ -38,7 +42,13 @@
     "type": "git",
     "url": "git+https://github.com/tombomann/klarpakke.git"
   },
-  "keywords": [],
+  "keywords": [
+    "crypto",
+    "trading",
+    "ai",
+    "webflow",
+    "automation"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
