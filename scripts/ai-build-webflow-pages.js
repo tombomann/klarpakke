@@ -1,157 +1,204 @@
 #!/usr/bin/env node
 /**
  * AI-Powered Webflow Page Builder
- * Automatically creates and populates Webflow pages using AI
+ * 
+ * Automatically builds Webflow pages using AI-generated content
+ * 
+ * Usage:
+ *   npm run ai:build-pages
+ *   npm run ai:build-pages -- landing,pricing
+ * 
+ * @author Klarpakke Team
  */
 
 require('dotenv').config();
 const WebflowMCP = require('../lib/webflow-mcp');
 const AIContentGenerator = require('../lib/ai-content-generator');
 
-const WEBFLOW_API_TOKEN = process.env.WEBFLOW_API_TOKEN;
-const WEBFLOW_SITE_ID = process.env.WEBFLOW_SITE_ID;
-const PPLX_API_KEY = process.env.PPLX_API_KEY;
-
-if (!WEBFLOW_API_TOKEN || !WEBFLOW_SITE_ID) {
-  console.error('❌ Missing Webflow credentials');
-  process.exit(1);
-}
-
-if (!PPLX_API_KEY) {
-  console.warn('⚠️  PPLX_API_KEY not set, using fallback content');
-}
-
-const webflow = new WebflowMCP(WEBFLOW_API_TOKEN, WEBFLOW_SITE_ID);
-const ai = new AIContentGenerator(PPLX_API_KEY);
-
-/**
- * Page templates with requirements
- */
+// Page templates
 const PAGE_TEMPLATES = {
   landing: {
     slug: 'index',
     name: 'Home',
-    title: 'Klarpakke - Trygg Krypto-Trading',
+    title: 'Klarpakke - Trygg Krypto-Trading med AI',
     requirements: {
       tone: 'professional yet friendly',
       targetAudience: 'Norwegian retail investors',
-      keyMessage: 'Safe crypto trading with AI',
       sections: ['hero', 'features', 'testimonials', 'cta']
     }
   },
+  
   pricing: {
     slug: 'pricing',
     name: 'Pricing',
-    title: 'Klarpakke - Priser',
+    title: 'Klarpakke - Velg Din Plan',
     requirements: {
-      plans: ['Paper (Free)', 'Safe (399 kr)', 'Pro (799 kr)', 'Extrem (1999 kr)'],
-      emphasis: 'value and transparency'
+      plans: ['Paper', 'Safe', 'Pro', 'Extrem']
     }
   },
+  
   dashboard: {
     slug: 'app/dashboard',
     name: 'Dashboard',
-    title: 'Klarpakke - Dashboard',
+    title: 'Dashboard - Klarpakke',
     requirements: {
       type: 'app',
-      features: ['signals list', 'filters', 'real-time updates']
+      features: ['signals list', 'filters']
     }
   },
+  
   calculator: {
     slug: 'app/kalkulator',
     name: 'Kalkulator',
-    title: 'Klarpakke - Risk Kalkulator',
+    title: 'Risiko-Kalkulator - Klarpakke',
     requirements: {
       type: 'app',
-      features: ['risk calculator', 'position sizing', 'P&L simulator']
+      features: ['risk calculator', 'position sizing']
+    }
+  },
+  
+  settings: {
+    slug: 'app/settings',
+    name: 'Settings',
+    title: 'Innstillinger - Klarpakke',
+    requirements: {
+      type: 'app',
+      features: ['user settings', 'preferences']
+    }
+  },
+  
+  login: {
+    slug: 'login',
+    name: 'Login',
+    title: 'Logg Inn - Klarpakke',
+    requirements: {
+      type: 'auth'
+    }
+  },
+  
+  signup: {
+    slug: 'signup',
+    name: 'Sign Up',
+    title: 'Registrer Deg - Klarpakke',
+    requirements: {
+      type: 'auth'
     }
   }
 };
 
-/**
- * Build all pages
- */
-async function buildAllPages() {
-  console.log('🤖 AI-POWERED WEBFLOW PAGE BUILDER');
-  console.log('════════════════════════════════════════');
-  console.log('');
+async function main() {
+  console.log('\n🤖 AI-POWERED WEBFLOW PAGE BUILDER');
+  console.log('========================================\n');
+
+  // Validate environment
+  if (!process.env.WEBFLOW_API_TOKEN) {
+    console.error('❌ WEBFLOW_API_TOKEN missing in .env');
+    process.exit(1);
+  }
+  
+  if (!process.env.WEBFLOW_SITE_ID) {
+    console.error('❌ WEBFLOW_SITE_ID missing in .env');
+    process.exit(1);
+  }
+
+  // Initialize
+  const webflow = new WebflowMCP(
+    process.env.WEBFLOW_API_TOKEN,
+    process.env.WEBFLOW_SITE_ID
+  );
+  
+  const ai = new AIContentGenerator(process.env.PPLX_API_KEY);
+  
+  if (!process.env.PPLX_API_KEY) {
+    console.log('ℹ️  PPLX_API_KEY not set - using fallback content\n');
+  }
+
+  // Determine which pages to build
+  const args = process.argv.slice(2);
+  const pagesArg = args[0] || 'all';
+  
+  let pagesToBuild;
+  if (pagesArg === 'all') {
+    pagesToBuild = Object.keys(PAGE_TEMPLATES);
+  } else {
+    pagesToBuild = pagesArg.split(',').map(p => p.trim());
+  }
+
+  console.log(`📄 Building pages: ${pagesToBuild.join(', ')}\n`);
 
   // Get existing pages
   console.log('📚 Checking existing pages...');
-  const existingPages = await webflow.listPages();
+  const existingResult = await webflow.listPages();
   
-  if (!existingPages.success) {
-    console.error('❌ Failed to list pages:', existingPages.error);
-    return;
+  if (!existingResult.success) {
+    console.error('❌ Failed to list pages:', existingResult.error);
+    process.exit(1);
   }
+  
+  console.log(`✅ Found ${existingResult.count} existing pages\n`);
+  const existingSlugs = new Set(existingResult.pages.map(p => p.slug));
 
-  console.log(`✅ Found ${existingPages.count} existing pages`);
-  console.log('');
+  // Build stats
+  const stats = {
+    created: 0,
+    skipped: 0,
+    failed: 0
+  };
 
   // Build each page
-  let created = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for (const [pageType, template] of Object.entries(PAGE_TEMPLATES)) {
-    console.log(`🎨 Building: ${template.name} (${template.slug})`);
-
-    // Check if exists
-    const exists = existingPages.pages.some(p => p.slug === template.slug);
-    if (exists) {
-      console.log(`   ⏭️  Skip: Already exists`);
-      skipped++;
+  for (const pageKey of pagesToBuild) {
+    const template = PAGE_TEMPLATES[pageKey];
+    
+    if (!template) {
+      console.warn(`⚠️  Unknown page: ${pageKey}`);
       continue;
     }
 
-    try {
-      // Generate content with AI
-      console.log(`   🤖 Generating content with AI...`);
-      const content = await ai.generatePageContent(pageType, template.requirements);
-      
-      // Create page
-      console.log(`   📝 Creating page...`);
-      const result = await webflow.createPage({
-        slug: template.slug,
-        name: template.name,
-        title: template.title
-      });
+    console.log(`🎨 Building: ${template.name} (${template.slug})`);
 
-      if (!result.success) {
-        console.log(`   ❌ Failed: ${result.error}`);
-        failed++;
-        continue;
-      }
-
-      console.log(`   ✅ Created: ${result.pageId}`);
-      console.log(`   💬 Content: ${content.headline || 'Generated'}`);
-      created++;
-
-      // Rate limiting
-      await sleep(1000);
-
-    } catch (error) {
-      console.log(`   ❌ Error: ${error.message}`);
-      failed++;
+    // Skip if exists
+    if (existingSlugs.has(template.slug)) {
+      console.log(`   ⏭️  Skip: Already exists\n`);
+      stats.skipped++;
+      continue;
     }
 
-    console.log('');
+    // Generate content with AI
+    console.log('   🤖 Generating content with AI...');
+    const content = await ai.generatePageContent(pageKey, template.requirements);
+    
+    // Create page
+    console.log('   📝 Creating page...');
+    const result = await webflow.createPage({
+      slug: template.slug,
+      name: template.name,
+      title: template.title,
+      description: content.subheadline || content.headline || template.title
+    });
+
+    if (result.success) {
+      console.log(`   ✅ Created: ${result.pageId}`);
+      console.log(`   💬 Content: ${content.headline || 'Default content'}\n`);
+      stats.created++;
+    } else {
+      console.error(`   ❌ Failed: ${result.error}\n`);
+      stats.failed++;
+    }
   }
 
-  console.log('════════════════════════════════════════');
+  // Summary
+  console.log('========================================');
   console.log('🎉 BUILD COMPLETE!');
-  console.log(`   Created: ${created}`);
-  console.log(`   Skipped: ${skipped}`);
-  console.log(`   Failed: ${failed}`);
-  console.log('════════════════════════════════════════');
+  console.log(`   Created: ${stats.created}`);
+  console.log(`   Skipped: ${stats.skipped}`);
+  console.log(`   Failed: ${stats.failed}`);
+  console.log('========================================\n');
+
+  process.exit(stats.failed > 0 ? 1 : 0);
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Run
-buildAllPages().catch(error => {
-  console.error('❌ Fatal error:', error);
+main().catch(error => {
+  console.error('\n❌ Fatal error:', error.message);
+  console.error(error.stack);
   process.exit(1);
 });

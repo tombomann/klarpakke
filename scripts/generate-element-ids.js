@@ -1,65 +1,73 @@
 #!/usr/bin/env node
 /**
- * Generate Element IDs using AI
+ * Generate Element IDs for Webflow Pages
+ * 
+ * Generates semantic, Webflow-compliant element IDs
+ * Outputs to docs/WEBFLOW-ELEMENT-IDS.md
+ * 
+ * Usage: npm run ai:generate-ids
  */
 
-require('dotenv').config();
-const WebflowMCP = require('../lib/webflow-mcp');
+const fs = require('fs');
+const path = require('path');
 const AIContentGenerator = require('../lib/ai-content-generator');
 
-const WEBFLOW_API_TOKEN = process.env.WEBFLOW_API_TOKEN;
-const WEBFLOW_SITE_ID = process.env.WEBFLOW_SITE_ID;
-const PPLX_API_KEY = process.env.PPLX_API_KEY;
-
-const webflow = new WebflowMCP(WEBFLOW_API_TOKEN, WEBFLOW_SITE_ID);
-const ai = new AIContentGenerator(PPLX_API_KEY);
-
-/**
- * Page structures for ID generation
- */
+// Page structures
 const PAGE_STRUCTURES = {
+  landing: {
+    sections: [
+      { name: 'hero', elements: ['headline', 'subheadline', 'cta-button'] },
+      { name: 'features', elements: ['list', 'item-template'] },
+      { name: 'testimonials', elements: ['wrapper', 'quote'] },
+      { name: 'cta', elements: ['button-primary'] }
+    ]
+  },
+  
   dashboard: {
-    sections: ['signals-container', 'filter-buttons', 'signal-item-template'],
-    components: ['loading-spinner', 'error-message']
+    sections: [
+      { name: 'signals', elements: ['container', 'item-template', 'loading', 'error'] },
+      { name: 'filter', elements: ['buy', 'sell', 'all'] }
+    ]
   },
+  
   calculator: {
-    inputs: ['risk-input-amount', 'risk-input-leverage'],
-    buttons: ['risk-calculate-btn'],
-    outputs: ['risk-result-container', 'risk-pnl-display']
-  },
-  settings: {
-    forms: ['settings-form'],
-    displays: ['user-email-display'],
-    buttons: ['logout-button', 'theme-toggle']
+    sections: [
+      { name: 'calc', elements: ['start', 'crypto-percent', 'plan', 'result-table'] },
+      { name: 'risk', elements: ['input-amount', 'input-leverage', 'calculate-btn'] }
+    ]
   }
 };
 
-async function generateElementIDs() {
-  console.log('🎯 Generating Element IDs with AI...');
-  console.log('');
+async function main() {
+  console.log('\n🎯 ELEMENT ID GENERATOR\n');
 
-  for (const [page, structure] of Object.entries(PAGE_STRUCTURES)) {
-    console.log(`📝 ${page}:`);
-    
-    if (PPLX_API_KEY) {
-      const ids = await ai.generateElementIDs(structure);
-      ids.forEach(item => {
-        console.log(`   - ${item.element}: #${item.id}`);
-      });
-    } else {
-      // Fallback: Use structure as-is
-      Object.entries(structure).forEach(([category, elements]) => {
-        elements.forEach(id => {
-          console.log(`   - ${category}: #${id}`);
-        });
-      });
-    }
-    
-    console.log('');
+  const ai = new AIContentGenerator();
+  const allIds = {};
+
+  for (const [pageName, structure] of Object.entries(PAGE_STRUCTURES)) {
+    console.log(`📄 Generating IDs for: ${pageName}`);
+    const ids = await ai.generateElementIDs(structure);
+    allIds[pageName] = ids;
   }
 
-  console.log('✅ Element IDs generated!');
-  console.log('   Copy these to docs/WEBFLOW-ELEMENT-IDS.md');
+  // Generate markdown
+  let markdown = '# Webflow Element IDs\n\n';
+  markdown += 'Auto-generated element IDs for JavaScript integration.\n\n';
+  
+  for (const [pageName, ids] of Object.entries(allIds)) {
+    markdown += `## ${pageName.charAt(0).toUpperCase() + pageName.slice(1)}\n\n`;
+    markdown += '```html\n';
+    for (const [key, id] of Object.entries(ids)) {
+      markdown += `${id}\n`;
+    }
+    markdown += '```\n\n';
+  }
+
+  // Write to file
+  const docsPath = path.join(__dirname, '..', 'docs', 'WEBFLOW-ELEMENT-IDS.md');
+  fs.writeFileSync(docsPath, markdown);
+  
+  console.log(`\n✅ Generated: docs/WEBFLOW-ELEMENT-IDS.md\n`);
 }
 
-generateElementIDs();
+main().catch(console.error);
