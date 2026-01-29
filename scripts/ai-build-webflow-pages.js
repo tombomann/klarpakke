@@ -2,10 +2,13 @@
 /**
  * AI-Powered Webflow Page Builder
  *
- * NOTE:
- * - Listing pages works via Webflow Data API v2.
- * - Creating pages typically requires Webflow Designer API (App/Designer extension).
- *   If you see 404 on createPage, you are hitting a Data API endpoint that does not support page creation.
+ * Attempts to create pages using Webflow APIs:
+ * 1. First checks if pages already exist
+ * 2. Tries Designer API v1 for creation
+ * 3. Falls back to helpful guidance if API permissions insufficient
+ * 4. Injects AI-generated content via Custom Code
+ *
+ * @version 2.0.0
  */
 
 require('dotenv').config();
@@ -85,20 +88,21 @@ function printWebflowError(result) {
   if (typeof status !== 'undefined') {
     console.error(`   🔎 HTTP status: ${status}`);
   }
-  if (result?.data) {
-    const safe = typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
-    console.error(`   🔎 Response data: ${safe.slice(0, 1200)}`);
+
+  if (result?.recommendation) {
+    console.error(`   💡 ${result.recommendation}`);
   }
 
-  if (status === 404 && method === 'createPage') {
-    console.error('   ℹ️  Webflow page creation is not available via this Data API endpoint.');
-    console.error('   👉 Use Webflow Designer API (App/Designer extension) to create pages/folders.');
-    console.error('   👉 Docs: https://developers.webflow.com/designer/reference/create-page');
+  if (status === 404 || status === 401 || status === 403) {
+    console.error('   ℹ️  API Limitation:');
+    console.error('   👉 Current token may have limited Designer API access');
+    console.error('   👉 Use Webflow Designer UI to create pages manually');
+    console.error('   👉 Follow: docs/webflow-manual-setup.md');
   }
 }
 
 async function main() {
-  console.log('\n🤖 AI-POWERED WEBFLOW PAGE BUILDER');
+  console.log('\n🤖 AI-POWERED WEBFLOW PAGE BUILDER v2');
   console.log('========================================\n');
 
   if (!process.env.WEBFLOW_API_TOKEN) {
@@ -127,17 +131,23 @@ async function main() {
   console.log(`📄 Building pages: ${pagesToBuild.join(', ')}\n`);
 
   console.log('📚 Checking existing pages...');
-  const existingResult = await webflow.listPages();
-  if (!existingResult.success) {
-    console.error('❌ Failed to list pages:', existingResult.error);
+  const validationResult = await webflow.validateRequiredPages();
+  
+  if (!validationResult.success) {
+    console.error('❌ Failed to validate pages:', validationResult.error);
     process.exit(1);
   }
 
-  console.log(`✅ Found ${existingResult.count} existing pages\n`);
-  const existingSlugs = new Set(existingResult.pages.map(p => p.slug));
+  console.log(`✅ Found ${validationResult.presentCount} existing pages`);
+  if (validationResult.missingCount > 0) {
+    console.log(`⚠️  Missing ${validationResult.missingCount} pages: ${validationResult.missing.join(', ')}\n`);
+  } else {
+    console.log(`✅ All ${validationResult.presentCount} required pages exist!\n`);
+  }
 
-  const stats = { created: 0, skipped: 0, failed: 0 };
-  let sawCreatePage404 = false;
+  const existingSlugs = new Set(validationResult.present);
+  const stats = { created: 0, skipped: 0, failed: 0, attempted: 0 };
+  let sawAPILimitation = false;
 
   for (const pageKey of pagesToBuild) {
     const template = PAGE_TEMPLATES[pageKey];
@@ -154,10 +164,11 @@ async function main() {
       continue;
     }
 
+    stats.attempted++;
     console.log('   🤖 Generating content with AI...');
     const content = await ai.generatePageContent(pageKey, template.requirements);
 
-    console.log('   📝 Creating page...');
+    console.log('   📝 Creating page via Designer API...');
     const result = await webflow.createPage({
       slug: template.slug,
       name: template.name,
@@ -167,12 +178,12 @@ async function main() {
 
     if (result.success) {
       console.log(`   ✅ Created: ${result.pageId}`);
-      console.log(`   💬 Content: ${content.headline || 'Default content'}\n`);
+      console.log(`   💬 Content: ${content.headline || 'Generated'}\n`);
       stats.created++;
     } else {
       printWebflowError(result);
-      if (result?.status === 404 && result?.method === 'createPage') {
-        sawCreatePage404 = true;
+      if (result?.recommendation) {
+        sawAPILimitation = true;
       }
       console.log('');
       stats.failed++;
@@ -181,14 +192,30 @@ async function main() {
 
   console.log('========================================');
   console.log('🎉 BUILD COMPLETE!');
+  console.log(`   Attempted: ${stats.attempted}`);
   console.log(`   Created: ${stats.created}`);
   console.log(`   Skipped: ${stats.skipped}`);
   console.log(`   Failed: ${stats.failed}`);
   console.log('========================================\n');
 
-  // Exit code hint:
-  // 2 = hard-blocked by API capability mismatch (helps CI show actionable failure)
-  if (sawCreatePage404) process.exit(2);
+  if (sawAPILimitation) {
+    console.log('ℹ️  API Token Limitations Detected');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Your token may have limited Designer API access.');
+    console.log('');
+    console.log('SOLUTION:');
+    console.log('1. Create pages manually in Webflow Designer');
+    console.log('2. Follow: docs/webflow-manual-setup.md');
+    console.log('3. Re-run this script (it will skip existing pages)');
+    console.log('4. Next: npm run deploy:prod');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  }
+
+  // Exit code hints:
+  // 0 = success
+  // 1 = some pages failed
+  // 2 = API limitation detected
+  if (sawAPILimitation) process.exit(2);
   process.exit(stats.failed > 0 ? 1 : 0);
 }
 
