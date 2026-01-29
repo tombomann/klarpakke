@@ -19,7 +19,14 @@
     "gen:webflow-staging": "bash scripts/generate-webflow-loader.sh staging",
     "gen:webflow-production": "bash scripts/generate-webflow-loader.sh production",
     "ci:all": "npm run build:web && npm run deploy:webflow && npm run deploy:backend",
-    "deploy:webflow:ui": "node scripts/deploy-webflow-ui.js"
+    "deploy:webflow:ui": "node scripts/deploy-webflow-ui.js",
+    "docs": "bash scripts/auto-generate-docs.sh",
+    "webflow:setup": "bash scripts/webflow-full-setup.sh",
+    "webflow:sync": "node scripts/sync-supabase-to-webflow-v2.js",
+    "secrets:validate": "bash scripts/validate-all-secrets.sh",
+    "secrets:push-supabase": "bash scripts/secrets-push-to-supabase.sh",
+    "secrets:push-github": "bash scripts/secrets-push-to-github.sh",
+    "secrets:pull-supabase": "bash scripts/secrets-pull-from-supabase.sh"
   },
   "repository": {
     "type": "git",
@@ -35,9 +42,11 @@
   "homepage": "https://github.com/tombomann/klarpakke#readme",
   "dependencies": {
     "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
-    "puppeteer": "^24.36.0"
+    "puppeteer": "^24.36.0",
+    "webflow-api": "^3.2.1"
   },
   "devDependencies": {
     "playwright": "^1.58.0"
