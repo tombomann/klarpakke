@@ -1,21 +1,17 @@
 #!/usr/bin/env node
 /**
  * AI-Powered Webflow Page Builder
- * 
- * Automatically builds Webflow pages using AI-generated content
- * 
- * Usage:
- *   npm run ai:build-pages
- *   npm run ai:build-pages -- landing,pricing
- * 
- * @author Klarpakke Team
+ *
+ * NOTE:
+ * - Listing pages works via Webflow Data API v2.
+ * - Creating pages typically requires Webflow Designer API (App/Designer extension).
+ *   If you see 404 on createPage, you are hitting a Data API endpoint that does not support page creation.
  */
 
 require('dotenv').config();
 const WebflowMCP = require('../lib/webflow-mcp');
 const AIContentGenerator = require('../lib/ai-content-generator');
 
-// Page templates
 const PAGE_TEMPLATES = {
   landing: {
     slug: 'index',
@@ -27,7 +23,6 @@ const PAGE_TEMPLATES = {
       sections: ['hero', 'features', 'testimonials', 'cta']
     }
   },
-  
   pricing: {
     slug: 'pricing',
     name: 'Pricing',
@@ -36,7 +31,6 @@ const PAGE_TEMPLATES = {
       plans: ['Paper', 'Safe', 'Pro', 'Extrem']
     }
   },
-  
   dashboard: {
     slug: 'app/dashboard',
     name: 'Dashboard',
@@ -46,7 +40,6 @@ const PAGE_TEMPLATES = {
       features: ['signals list', 'filters']
     }
   },
-  
   calculator: {
     slug: 'app/kalkulator',
     name: 'Kalkulator',
@@ -56,7 +49,6 @@ const PAGE_TEMPLATES = {
       features: ['risk calculator', 'position sizing']
     }
   },
-  
   settings: {
     slug: 'app/settings',
     name: 'Settings',
@@ -66,7 +58,6 @@ const PAGE_TEMPLATES = {
       features: ['user settings', 'preferences']
     }
   },
-  
   login: {
     slug: 'login',
     name: 'Login',
@@ -75,7 +66,6 @@ const PAGE_TEMPLATES = {
       type: 'auth'
     }
   },
-  
   signup: {
     slug: 'signup',
     name: 'Sign Up',
@@ -86,69 +76,71 @@ const PAGE_TEMPLATES = {
   }
 };
 
+function printWebflowError(result) {
+  const status = result?.status;
+  const method = result?.method;
+  const msg = result?.error;
+
+  console.error(`   ❌ Failed (${method || 'unknown'}): ${msg || 'Unknown error'}`);
+  if (typeof status !== 'undefined') {
+    console.error(`   🔎 HTTP status: ${status}`);
+  }
+  if (result?.data) {
+    const safe = typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
+    console.error(`   🔎 Response data: ${safe.slice(0, 1200)}`);
+  }
+
+  if (status === 404 && method === 'createPage') {
+    console.error('   ℹ️  Webflow page creation is not available via this Data API endpoint.');
+    console.error('   👉 Use Webflow Designer API (App/Designer extension) to create pages/folders.');
+    console.error('   👉 Docs: https://developers.webflow.com/designer/reference/create-page');
+  }
+}
+
 async function main() {
   console.log('\n🤖 AI-POWERED WEBFLOW PAGE BUILDER');
   console.log('========================================\n');
 
-  // Validate environment
   if (!process.env.WEBFLOW_API_TOKEN) {
     console.error('❌ WEBFLOW_API_TOKEN missing in .env');
     process.exit(1);
   }
-  
   if (!process.env.WEBFLOW_SITE_ID) {
     console.error('❌ WEBFLOW_SITE_ID missing in .env');
     process.exit(1);
   }
 
-  // Initialize
-  const webflow = new WebflowMCP(
-    process.env.WEBFLOW_API_TOKEN,
-    process.env.WEBFLOW_SITE_ID
-  );
-  
+  const webflow = new WebflowMCP(process.env.WEBFLOW_API_TOKEN, process.env.WEBFLOW_SITE_ID);
   const ai = new AIContentGenerator(process.env.PPLX_API_KEY);
-  
+
   if (!process.env.PPLX_API_KEY) {
     console.log('ℹ️  PPLX_API_KEY not set - using fallback content\n');
   }
 
-  // Determine which pages to build
   const args = process.argv.slice(2);
   const pagesArg = args[0] || 'all';
-  
-  let pagesToBuild;
-  if (pagesArg === 'all') {
-    pagesToBuild = Object.keys(PAGE_TEMPLATES);
-  } else {
-    pagesToBuild = pagesArg.split(',').map(p => p.trim());
-  }
+
+  const pagesToBuild = pagesArg === 'all'
+    ? Object.keys(PAGE_TEMPLATES)
+    : pagesArg.split(',').map(p => p.trim());
 
   console.log(`📄 Building pages: ${pagesToBuild.join(', ')}\n`);
 
-  // Get existing pages
   console.log('📚 Checking existing pages...');
   const existingResult = await webflow.listPages();
-  
   if (!existingResult.success) {
     console.error('❌ Failed to list pages:', existingResult.error);
     process.exit(1);
   }
-  
+
   console.log(`✅ Found ${existingResult.count} existing pages\n`);
   const existingSlugs = new Set(existingResult.pages.map(p => p.slug));
 
-  // Build stats
-  const stats = {
-    created: 0,
-    skipped: 0,
-    failed: 0
-  };
+  const stats = { created: 0, skipped: 0, failed: 0 };
+  let sawCreatePage404 = false;
 
-  // Build each page
   for (const pageKey of pagesToBuild) {
     const template = PAGE_TEMPLATES[pageKey];
-    
     if (!template) {
       console.warn(`⚠️  Unknown page: ${pageKey}`);
       continue;
@@ -156,18 +148,15 @@ async function main() {
 
     console.log(`🎨 Building: ${template.name} (${template.slug})`);
 
-    // Skip if exists
     if (existingSlugs.has(template.slug)) {
       console.log(`   ⏭️  Skip: Already exists\n`);
       stats.skipped++;
       continue;
     }
 
-    // Generate content with AI
     console.log('   🤖 Generating content with AI...');
     const content = await ai.generatePageContent(pageKey, template.requirements);
-    
-    // Create page
+
     console.log('   📝 Creating page...');
     const result = await webflow.createPage({
       slug: template.slug,
@@ -181,12 +170,15 @@ async function main() {
       console.log(`   💬 Content: ${content.headline || 'Default content'}\n`);
       stats.created++;
     } else {
-      console.error(`   ❌ Failed: ${result.error}\n`);
+      printWebflowError(result);
+      if (result?.status === 404 && result?.method === 'createPage') {
+        sawCreatePage404 = true;
+      }
+      console.log('');
       stats.failed++;
     }
   }
 
-  // Summary
   console.log('========================================');
   console.log('🎉 BUILD COMPLETE!');
   console.log(`   Created: ${stats.created}`);
@@ -194,6 +186,9 @@ async function main() {
   console.log(`   Failed: ${stats.failed}`);
   console.log('========================================\n');
 
+  // Exit code hint:
+  // 2 = hard-blocked by API capability mismatch (helps CI show actionable failure)
+  if (sawCreatePage404) process.exit(2);
   process.exit(stats.failed > 0 ? 1 : 0);
 }
 

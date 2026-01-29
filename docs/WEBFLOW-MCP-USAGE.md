@@ -1,3 +1,7 @@
+// NOTE: This file documents *desired* functionality.
+// In practice, creating pages is done via Webflow Designer API (App/Designer extension),
+// while this wrapper focuses on Webflow Data API v2 (pages listing/metadata, CMS, publish).
+
 # Webflow MCP API Reference
 
 **Version:** 1.0.0  
@@ -7,7 +11,11 @@
 
 ## 📖 Overview
 
-The Webflow MCP (Model Context Protocol) library provides a clean interface for programmatic Webflow site management.
+The Webflow MCP library provides a clean interface for programmatic Webflow site management.
+
+Important: Webflow has multiple APIs. In our stack:
+- **Data API v2**: CMS (collections/items), publishing, listing pages and reading/updating page metadata (where supported).
+- **Designer API**: Creating pages/folders and changing Designer-level structure (requires a Webflow App / Designer extension).
 
 ---
 
@@ -47,269 +55,38 @@ WEBFLOW_SITE_ID=xxx
 
 ## 📚 API Methods
 
-### Site Info
-
-#### `getSiteInfo()`
-
-Get site information.
-
-```javascript
-const result = await webflow.getSiteInfo();
-
-if (result.success) {
-  console.log('Site:', result.data.displayName);
-} else {
-  console.error('Error:', result.error);
-}
-```
-
-**Response:**
-```javascript
-{
-  success: true,
-  data: {
-    id: 'xxx',
-    displayName: 'Klarpakke',
-    shortName: 'klarpakke',
-    customDomains: ['www.klarpakke.no']
-  }
-}
-```
-
----
-
 ### Pages
 
 #### `listPages()`
 
 List all pages in site.
 
-```javascript
-const result = await webflow.listPages();
-
-console.log(`Found ${result.count} pages`);
-result.pages.forEach(page => {
-  console.log(`- ${page.name} (${page.slug})`);
-});
-```
-
-**Response:**
-```javascript
-{
-  success: true,
-  pages: [
-    {
-      id: 'page_xxx',
-      slug: 'index',
-      name: 'Home',
-      title: 'Klarpakke - Home'
-    }
-  ],
-  count: 1
-}
-```
-
-#### `getPage(slug)`
-
-Get specific page by slug.
-
-```javascript
-const result = await webflow.getPage('pricing');
-
-if (result.success) {
-  console.log('Page ID:', result.page.id);
-}
-```
-
 #### `createPage(data)`
 
-Create new page.
+⚠️ **Designer API required**
 
-```javascript
-const result = await webflow.createPage({
-  slug: 'pricing',
-  name: 'Pricing',
-  title: 'Klarpakke - Priser',
-  description: 'Velg din plan',
-  openGraph: {
-    title: 'Klarpakke Pricing',
-    description: 'Velg din plan'
-  }
-});
+Creating pages is typically **not available** through the Data API endpoint `POST /v2/sites/{siteId}/pages` and may return 404.
 
-if (result.success) {
-  console.log('Created:', result.pageId);
-}
-```
+Use a Webflow **Designer extension** to call the Designer API method `webflow.createPage()`:
+- Docs: https://developers.webflow.com/designer/reference/create-page
 
-**Parameters:**
-- `slug` (required) - URL slug (e.g., 'pricing')
-- `name` (required) - Display name
-- `title` (required) - Page title
-- `description` (optional) - Meta description
-- `openGraph` (optional) - Open Graph metadata
-
-#### `updatePageMetadata(pageId, metadata)`
-
-Update page metadata.
-
-```javascript
-const result = await webflow.updatePageMetadata('page_xxx', {
-  seo: {
-    title: 'New Title',
-    description: 'New description'
-  }
-});
-```
-
-#### `pageExists(slug)`
-
-Check if page exists.
-
-```javascript
-const exists = await webflow.pageExists('pricing');
-if (exists) {
-  console.log('Page exists!');
-}
-```
+This repo will provide a `webflow-designer-extension/` package for page creation (next step).
 
 ---
 
 ### CMS Collections
 
-#### `listCollections()`
-
-List all CMS collections.
-
-```javascript
-const result = await webflow.listCollections();
-
-result.collections.forEach(col => {
-  console.log(`- ${col.displayName} (${col.id})`);
-});
-```
-
-#### `getCollectionItems(collectionId, options)`
-
-Get collection items.
-
-```javascript
-const result = await webflow.getCollectionItems('col_xxx', {
-  limit: 100,
-  offset: 0
-});
-
-console.log(`Got ${result.count} items`);
-```
-
-**Options:**
-- `limit` (default: 100) - Max items to return
-- `offset` (default: 0) - Pagination offset
-
-#### `createCollectionItem(collectionId, fields)`
-
-Create CMS item.
-
-```javascript
-const result = await webflow.createCollectionItem('col_xxx', {
-  name: 'BTC Signal',
-  slug: 'btc-signal-123',
-  symbol: 'BTC',
-  direction: 'BUY',
-  price: 50000
-});
-
-if (result.success) {
-  console.log('Created:', result.item.id);
-}
-```
-
-#### `updateCollectionItem(collectionId, itemId, fields)`
-
-Update CMS item.
-
-```javascript
-const result = await webflow.updateCollectionItem(
-  'col_xxx',
-  'item_xxx',
-  { price: 51000 }
-);
-```
+`listCollections()`, `getCollectionItems()`, `createCollectionItem()`, etc. are supported via Data API v2.
 
 ---
 
 ### Publishing
 
-#### `publishSite(domains)`
-
-Publish site to domains.
-
-```javascript
-// Publish to all domains
-await webflow.publishSite();
-
-// Publish to specific domains
-await webflow.publishSite(['www.klarpakke.no']);
-```
-
----
-
-## 🚨 Error Handling
-
-All methods return structured responses:
-
-```javascript
-{
-  success: true,  // or false
-  data: {...},    // on success
-  error: '...',   // on failure
-  status: 404,    // HTTP status (if error)
-  method: '...'   // Method name (if error)
-}
-```
-
-**Example:**
-
-```javascript
-const result = await webflow.createPage({...});
-
-if (result.success) {
-  console.log('✅ Success:', result.pageId);
-} else {
-  console.error('❌ Error:', result.error);
-  if (result.status === 401) {
-    console.error('Invalid API token');
-  }
-}
-```
-
----
-
-## 🧩 Testing
-
-### Connection Test
-
-```bash
-node -e "
-const WebflowMCP = require('./lib/webflow-mcp');
-const w = new WebflowMCP(
-  process.env.WEBFLOW_API_TOKEN,
-  process.env.WEBFLOW_SITE_ID
-);
-w.getSiteInfo().then(r => {
-  if (r.success) {
-    console.log('✅ Connected to:', r.data.displayName);
-  } else {
-    console.log('❌ Failed:', r.error);
-  }
-});
-"
-```
+`publishSite(domains)` is supported via Data API v2.
 
 ---
 
 ## 🔗 Resources
 
-- **Webflow API v2:** https://developers.webflow.com/
-- **GitHub Repo:** https://github.com/tombomann/klarpakke
-- **Integration Guide:** `docs/AI-WEBFLOW-INTEGRATION.md`
+- Webflow Developer Docs: https://developers.webflow.com/
+- Webflow Designer API (Create page): https://developers.webflow.com/designer/reference/create-page
