@@ -1,0 +1,63 @@
+name: 🤖 AI Webflow Page Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: 'Pages to build (comma-separated: landing,pricing,dashboard,all)'
+        required: true
+        default: 'all'
+      use_ai:
+        description: 'Use AI content generation'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  build-pages:
+    name: Build Webflow Pages with AI
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run AI Page Builder
+        run: node scripts/ai-build-webflow-pages.js
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+          PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
+          USE_AI: ${{ inputs.use_ai }}
+      
+      - name: Generate Element IDs
+        run: node scripts/generate-element-ids.js
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+          PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
+      
+      - name: Optimize for SEO
+        run: node scripts/seo-optimize-pages.js
+        env:
+          PPLX_API_KEY: ${{ secrets.PPLX_API_KEY }}
+      
+      - name: Report Results
+        if: always()
+        run: |
+          echo "🎉 AI Webflow Builder Complete!"
+          echo ""
+          echo "Next steps:"
+          echo "1. Open Webflow Designer"
+          echo "2. Review AI-generated pages"
+          echo "3. Customize as needed"
+          echo "4. Publish when ready"
