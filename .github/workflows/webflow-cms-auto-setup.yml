@@ -1,0 +1,69 @@
+name: 🎨 Webflow CMS Auto-Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Operation to perform'
+        required: true
+        type: choice
+        options:
+          - validate
+          - create-collections
+          - sync-data
+          - full-setup
+
+jobs:
+  webflow-setup:
+    name: ${{ inputs.operation }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Validate Webflow Setup
+        if: inputs.operation == 'validate' || inputs.operation == 'full-setup'
+        run: node scripts/webflow-validate-setup.js
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+      
+      - name: Create/Update Collections
+        if: inputs.operation == 'create-collections' || inputs.operation == 'full-setup'
+        run: node scripts/webflow-auto-create-collections.js
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+      
+      - name: Sync CMS Data
+        if: inputs.operation == 'sync-data' || inputs.operation == 'full-setup'
+        run: npm run webflow:sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SIGNALS_COLLECTION_ID: ${{ secrets.WEBFLOW_SIGNALS_COLLECTION_ID }}
+      
+      - name: Generate Custom Code Snippets
+        if: inputs.operation == 'full-setup'
+        run: node scripts/webflow-generate-snippets.js
+      
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webflow-setup-artifacts
+          path: |
+            web/snippets/*.html
+            webflow-setup-report.json
+          retention-days: 30
