@@ -26,7 +26,10 @@
     "secrets:validate": "bash scripts/validate-all-secrets.sh",
     "secrets:push-supabase": "bash scripts/secrets-push-to-supabase.sh",
     "secrets:push-github": "bash scripts/secrets-push-to-github.sh",
-    "secrets:pull-supabase": "bash scripts/secrets-pull-from-supabase.sh"
+    "secrets:pull-supabase": "bash scripts/secrets-pull-from-supabase.sh",
+    "db:cleanup": "node scripts/cleanup-database.js",
+    "health:check": "node scripts/health-check.js",
+    "health:full": "npm run secrets:validate && npm run health:check"
   },
   "repository": {
     "type": "git",
