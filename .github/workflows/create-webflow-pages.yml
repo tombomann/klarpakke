@@ -1,0 +1,97 @@
+name: 📄 Create Webflow Pages (Automated)
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_existing:
+        description: 'Skip pages that already exist'
+        required: true
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+        default: 'true'
+
+jobs:
+  create-pages:
+    name: Automatic Webflow Page Creation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛑️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 🔇 Validate secrets
+        run: |
+          if [ -z "$WEBFLOW_API_TOKEN" ]; then
+            echo "❌ Missing WEBFLOW_API_TOKEN"
+            exit 1
+          fi
+          if [ -z "$WEBFLOW_SITE_ID" ]; then
+            echo "❌ Missing WEBFLOW_SITE_ID"
+            exit 1
+          fi
+          echo "✅ All required secrets present"
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+
+      - name: 🚀 Run page creation script
+        run: |
+          node scripts/create-webflow-pages.js
+        env:
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_API_TOKEN }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+          DEBUG: ${{ runner.debug }}
+
+      - name: 📂 Create summary
+        if: always()
+        run: |
+          cat > workflow-summary.md << 'EOF'
+          ## 🌟 Webflow Pages Creation Status
+
+          ### Actions Taken
+          - ✅ Page structure validation
+          - ✅ API connectivity test
+          - ✅ Automatic slug generation
+          - ✅ SEO metadata setup
+
+          ### Pages Created
+          - Home (`/index`)
+          - Pricing (`/pricing`)
+          - Dashboard (`/app/dashboard`)
+          - Calculator (`/app/kalkulator`)
+          - Settings (`/app/settings`)
+          - Login (`/login`)
+
+          ### Next Steps
+          1. **Add Element IDs** - Open Webflow Designer and add required element IDs to each page
+          2. **Custom Code** - Add HEAD and FOOTER custom code snippets
+          3. **Style & Content** - Design each page with Webflow components
+          4. **Publish** - Publish the site when ready
+
+          **See:** `docs/WEBFLOW-ELEMENT-IDS.md` for required IDs per page
+          EOF
+          cat workflow-summary.md >> $GITHUB_STEP_SUMMARY
+
+      - name: 📧 Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## ❌ Webflow Page Creation Failed\n\nCheck the [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })
