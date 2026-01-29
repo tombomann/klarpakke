@@ -10,6 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "one:click": "bash scripts/one-click.sh",
     "deploy:oneclick": "bash scripts/one-click-deploy.sh",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
