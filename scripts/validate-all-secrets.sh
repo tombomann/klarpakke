@@ -1,15 +1,8 @@
 #!/bin/bash
-set -e
 
 echo "🔐 KLARPAKKE SECRET VALIDATION"
 echo "════════════════════════════════════════════════════"
 echo ""
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Counters
 ERRORS=0
@@ -23,16 +16,15 @@ check_secret() {
   
   if [ -z "$value" ]; then
     if [ "$required" = "true" ]; then
-      echo -e "${RED}❌ MISSING:${NC} $name"
+      echo "❌ MISSING: $name"
       ((ERRORS++))
     else
-      echo -e "${YELLOW}⚠️  OPTIONAL:${NC} $name (not set)"
+      echo "⚠️  OPTIONAL: $name (not set)"
       ((WARNINGS++))
     fi
   else
-    # Mask value
     local masked="${value:0:20}..."
-    echo -e "${GREEN}✅ FOUND:${NC} $name = $masked"
+    echo "✅ FOUND: $name = $masked"
     ((SUCCESS++))
   fi
 }
@@ -41,7 +33,7 @@ echo "📋 PHASE 1: LOCAL .env FILE"
 echo "────────────────────────────────────────────────────"
 
 if [ ! -f .env ]; then
-  echo -e "${RED}❌ CRITICAL: .env file not found!${NC}"
+  echo "❌ CRITICAL: .env file not found!"
   exit 1
 fi
 
@@ -59,72 +51,7 @@ check_secret "WEBFLOW_SITE_ID" "$WEBFLOW_SITE_ID" true
 check_secret "WEBFLOW_SIGNALS_COLLECTION_ID" "$WEBFLOW_SIGNALS_COLLECTION_ID" true
 
 echo ""
-echo "📋 PHASE 2: SUPABASE SECRETS (Remote)"
-echo "────────────────────────────────────────────────────"
-
-# Check Supabase secrets
-if command -v supabase &> /dev/null; then
-  echo "Fetching Supabase secrets..."
-  
-  SUPABASE_SECRETS=$(supabase secrets list 2>/dev/null || echo "")
-  
-  if [ -n "$SUPABASE_SECRETS" ]; then
-    echo "$SUPABASE_SECRETS"
-    echo -e "${GREEN}✅ Supabase CLI connected${NC}"
-  else
-    echo -e "${YELLOW}⚠️  No secrets found or not authenticated${NC}"
-    echo "   Run: supabase link --project-ref $SUPABASE_PROJECT_REF"
-    ((WARNINGS++))
-  fi
-else
-  echo -e "${YELLOW}⚠️  Supabase CLI not installed${NC}"
-  ((WARNINGS++))
-fi
-
-echo ""
-echo "📋 PHASE 3: GITHUB SECRETS"
-echo "────────────────────────────────────────────────────"
-
-if command -v gh &> /dev/null; then
-  echo "Checking GitHub repository secrets..."
-  
-  # List repo secrets (doesn't show values, just names)
-  GH_SECRETS=$(gh secret list 2>/dev/null || echo "")
-  
-  if [ -n "$GH_SECRETS" ]; then
-    echo "$GH_SECRETS"
-    echo -e "${GREEN}✅ GitHub CLI connected${NC}"
-    
-    # Check for required secrets
-    REQUIRED_GH_SECRETS=(
-      "SUPABASE_URL"
-      "SUPABASE_ANON_KEY"
-      "SUPABASE_SERVICE_KEY"
-      "WEBFLOW_API_TOKEN"
-      "WEBFLOW_SITE_ID"
-      "WEBFLOW_SIGNALS_COLLECTION_ID"
-    )
-    
-    for secret in "${REQUIRED_GH_SECRETS[@]}"; do
-      if echo "$GH_SECRETS" | grep -q "$secret"; then
-        echo -e "${GREEN}✅${NC} $secret exists in GitHub"
-      else
-        echo -e "${RED}❌ MISSING:${NC} $secret in GitHub Secrets"
-        ((ERRORS++))
-      fi
-    done
-  else
-    echo -e "${YELLOW}⚠️  Could not list GitHub secrets${NC}"
-    echo "   Run: gh auth login"
-    ((WARNINGS++))
-  fi
-else
-  echo -e "${YELLOW}⚠️  GitHub CLI not installed${NC}"
-  ((WARNINGS++))
-fi
-
-echo ""
-echo "📋 PHASE 4: CONNECTION TESTS"
+echo "📋 PHASE 2: CONNECTION TESTS"
 echo "────────────────────────────────────────────────────"
 
 # Test Supabase
@@ -135,11 +62,10 @@ SUPABASE_TEST=$(curl -s -o /dev/null -w "%{http_code}" \
   "$SUPABASE_URL/rest/v1/" 2>/dev/null || echo "000")
 
 if [ "$SUPABASE_TEST" = "200" ]; then
-  echo -e "${GREEN}✅ Supabase API: Connected${NC}"
+  echo "✅ Supabase API: Connected"
   ((SUCCESS++))
 else
-  echo -e "${RED}❌ Supabase API: Failed (HTTP $SUPABASE_TEST)${NC}"
-  echo "   Check SUPABASE_URL and SUPABASE_ANON_KEY"
+  echo "❌ Supabase API: Failed (HTTP $SUPABASE_TEST)"
   ((ERRORS++))
 fi
 
@@ -150,11 +76,10 @@ WEBFLOW_TEST=$(curl -s -o /dev/null -w "%{http_code}" \
   "https://api.webflow.com/v2/sites/$WEBFLOW_SITE_ID" 2>/dev/null || echo "000")
 
 if [ "$WEBFLOW_TEST" = "200" ]; then
-  echo -e "${GREEN}✅ Webflow API: Connected${NC}"
+  echo "✅ Webflow API: Connected"
   ((SUCCESS++))
 else
-  echo -e "${RED}❌ Webflow API: Failed (HTTP $WEBFLOW_TEST)${NC}"
-  echo "   Check WEBFLOW_API_TOKEN and WEBFLOW_SITE_ID"
+  echo "❌ Webflow API: Failed (HTTP $WEBFLOW_TEST)"
   ((ERRORS++))
 fi
 
@@ -162,20 +87,15 @@ echo ""
 echo "════════════════════════════════════════════════════"
 echo "📊 SUMMARY"
 echo "════════════════════════════════════════════════════"
-echo -e "${GREEN}✅ Success: $SUCCESS${NC}"
-echo -e "${YELLOW}⚠️  Warnings: $WARNINGS${NC}"
-echo -e "${RED}❌ Errors: $ERRORS${NC}"
+echo "✅ Success: $SUCCESS"
+echo "⚠️  Warnings: $WARNINGS"
+echo "❌ Errors: $ERRORS"
 echo ""
 
 if [ $ERRORS -gt 0 ]; then
-  echo -e "${RED}❌ VALIDATION FAILED${NC}"
-  echo ""
-  echo "🔧 FIXES:"
-  echo "1. Update .env with correct values"
-  echo "2. Sync to Supabase: npm run secrets:push"
-  echo "3. Sync to GitHub: npm run secrets:sync-github"
+  echo "❌ VALIDATION FAILED"
   exit 1
 else
-  echo -e "${GREEN}✅ ALL SYSTEMS GO!${NC}"
+  echo "✅ ALL SYSTEMS GO!"
   exit 0
 fi

@@ -41,3 +41,14 @@ reports/*.json
 # Misc
 *.tgz
 *.zip
+# Environment variables (NEVER commit these!)
+.env
+.env.*
+.env.bak
+.env.backup
+.env.local
+.env.production
+*.env
+
+# Validation reports (contains masked secrets)
+validation-report.txt

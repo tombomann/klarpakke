@@ -1,0 +1,56 @@
+{
+  "pages": [
+    {
+      "name": "kalkulator",
+      "slug": "/kalkulator",
+      "title": "Se potensialet ditt | Klarpakke",
+      "elements": [
+        {
+          "type": "Heading",
+          "tag": "h1",
+          "text": "Se potensialet ditt"
+        },
+        {
+          "type": "Paragraph",
+          "text": "Med riktig strategi og tålmodighet kan du bygge noe stort."
+        },
+        {
+          "type": "Input",
+          "inputType": "number",
+          "id": "calc-start",
+          "defaultValue": 5000,
+          "label": "Startbeløp"
+        },
+        {
+          "type": "Input",
+          "inputType": "range",
+          "id": "calc-crypto-percent",
+          "min": 0,
+          "max": 100,
+          "defaultValue": 50,
+          "label": "% i krypto"
+        },
+        {
+          "type": "Select",
+          "id": "calc-plan",
+          "options": ["paper", "safe", "pro", "extrem"]
+        },
+        {
+          "type": "Div",
+          "id": "calc-result-table",
+          "class": "result-table"
+        }
+      ]
+    },
+    {
+      "name": "opplaering",
+      "slug": "/opplaering",
+      "title": "Lær krypto | Klarpakke"
+    },
+    {
+      "name": "risiko",
+      "slug": "/risiko",
+      "title": "Risiko forklart | Klarpakke"
+    }
+  ]
+}
