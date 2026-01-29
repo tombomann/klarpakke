@@ -112,7 +112,7 @@ bash scripts/deploy-backend.sh
 ### Design & Content
 - **[Design System](docs/DESIGN.md)** (Farger, typografi, trafikklys, sider, pricing)
 - **[Copy (Microcopy)](docs/COPY.md)** (Alle tekster til Webflow)
-- **[Webflow Manual Guide](docs/WEBFLOW-MANUAL.md)** (Lær hvordan du unngår kode-som-tekst feil)
+- **[Webflow Manual Guide](docs/WEBFLOW-MANUAL.md)** 👈 **Create pages in Designer**
 - **[Webflow Element IDs](docs/WEBFLOW-ELEMENT-IDS.md)** (Required IDs per side)
 - **[Webflow Sitemap](docs/WEBFLOW-SITEMAP.md)** (Side struktur)
 - **[Webflow QA Checklist](docs/WEBFLOW-QA-CHECKLIST.md)** (Testing)
@@ -268,7 +268,7 @@ PPLX_API_KEY         # Perplexity API
 
 ### 📅 Next Steps
 
-1. **Create Webflow pages** with required element IDs (2-3 hours)
+1. **Create Webflow pages** manually in Designer (20-30 minutes)
 2. **Integrate Supabase Auth** into login/signup flows (2-3 hours)
 3. **End-to-end testing** across all pages (8 hours)
 4. **Deploy to staging** for QA (1 hour)
@@ -280,7 +280,27 @@ PPLX_API_KEY         # Perplexity API
 
 ---
 
-## 📚 Webflow Integration Checklist
+## 📚 Webflow Setup (Manual)
+
+⚠️ **Important:** Webflow API v2 does not support page creation. Pages must be created manually in Webflow Designer.
+
+### Step-by-Step Guide
+
+**Follow:** [`docs/WEBFLOW-MANUAL.md`](docs/WEBFLOW-MANUAL.md) (20-30 minutes)
+
+**Quick Overview:**
+1. Open Webflow Designer
+2. Create 6 pages manually:
+   - Home (`/index`)
+   - Pricing (`/pricing`)
+   - Dashboard (`/app/dashboard`)
+   - Kalkulator (`/app/kalkulator`)
+   - Settings (`/app/settings`)
+   - Login (`/login`)
+3. Add required element IDs (see [`docs/WEBFLOW-ELEMENT-IDS.md`](docs/WEBFLOW-ELEMENT-IDS.md))
+4. Add Custom Code snippets
+5. Design pages with Webflow components
+6. Publish
 
 ### Element IDs Required (Per Side)
 
@@ -308,20 +328,18 @@ PPLX_API_KEY         # Perplexity API
 
 **Full list:** See [`docs/WEBFLOW-ELEMENT-IDS.md`](docs/WEBFLOW-ELEMENT-IDS.md)
 
-### Setup (One-Time)
+### After Pages Are Created
 
-1. **After first CI/CD run**, download webflow-loader artifact
-2. **Webflow Project Settings → Custom Code → Footer**:
-   ```html
-   <script src="https://cdn.jsdelivr.net/gh/tombomann/klarpakke@{COMMIT_SHA}/web/dist/webflow-loader.js"></script>
-   ```
-3. **Publish** – loader will inject config + load scripts automatically
+```bash
+# Test that scripts can connect
+npm run health:full
 
-### After Deploy
+# Deploy backend
+npm run deploy:backend
 
-- Hard refresh (`Cmd+Shift+R`) and open DevTools Console
-- Check for "[Klarpakke]" logger messages
-- Missing elements will be logged as warnings
+# Publish Webflow site
+# (Done in Webflow Designer UI)
+```
 
 ---
 
