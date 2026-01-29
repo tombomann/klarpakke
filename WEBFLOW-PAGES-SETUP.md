@@ -1,224 +1,305 @@
-# 🚀 Automatic Webflow Pages Setup (1-Click)
+# 🎨 Webflow Designer Setup Guide
 
-**Goal:** Create 6 pages automatically in Webflow
-
-**Time:** < 2 minutes (secrets already configured! ✅)
-
----
-
-## ✅ Prerequisites (Already Done!)
-
-Your repo already has:
-- ✅ `WEBFLOW_API_TOKEN` in GitHub Secrets
-- ✅ `WEBFLOW_SITE_ID` in GitHub Secrets
-- ✅ All secrets synced from Supabase
-
-**No setup needed!** Just run the automation.
+**Goal:** Create 6 pages manually in Webflow Designer  
+**Time:** 20-30 minutes  
+**Reason:** Webflow API v2 does not support page creation - manual Designer workflow required
 
 ---
 
-## Step 1: Run Page Creation (< 1 min)
+## ⚠️ Important: API Limitation
 
-### Option A: GitHub Actions (Recommended) ⭐
+**Webflow Data API (v2) cannot create pages** — only list them. You must:
+1. Create pages **manually in Webflow Designer**
+2. Then scripts will inject content via **Custom Code**
 
-1. Go to: https://github.com/tombomann/klarpakke/actions
-2. Find: **📄 Create Webflow Pages (Automated)**
-3. Click **Run workflow** → **Run workflow**
-4. Wait for ✅ green checkmark (< 1 minute)
+This is a Webflow platform limitation, not a bug in our automation.
 
-### Option B: Local Command
+---
 
-```bash
-# Secrets are already in .env (synced from Supabase)
-npm run webflow:create-pages
+## 📅 Pages to Create (6 Total)
+
+| # | Page Name | Slug | Purpose |
+|---|-----------|------|----------|
+| 1 | Home | `index` | Landing page |
+| 2 | Pricing | `pricing` | Pricing tiers |
+| 3 | Dashboard | `app/dashboard` | User dashboard |
+| 4 | Kalkulator | `app/kalkulator` | Risk calculator |
+| 5 | Settings | `app/settings` | User settings |
+| 6 | Login | `login` | Authentication |
+
+---
+
+## 🚀 Step-by-Step Instructions
+
+### Step 1: Open Webflow Designer (2 min)
+
+1. Go to: https://webflow.com/dashboard
+2. Open project: **Klarpakke**
+3. Click **Designer** button
+4. You should see existing page: **Pricing** (or empty project)
+
+---
+
+### Step 2: Create Pages (5 min)
+
+For each page:
+
+1. Click **Pages** panel (left sidebar)
+2. Click **+** icon (top-right of Pages panel)
+3. Enter page details:
+   - **Name:** (see table above)
+   - **Slug:** (see table above)
+4. Click **Create**
+5. Repeat for all 6 pages
+
+**Tip:** For nested pages like `app/dashboard`, Webflow will auto-create the `app/` folder.
+
+---
+
+### Step 3: Add Element IDs (15 min)
+
+**Why?** Scripts need specific element IDs to inject content dynamically.
+
+#### Home Page (`/index`)
+
+```html
+<!-- Add these elements with IDs -->
+<div id="cta-primary">Start Demo</div>
+<button id="cta-demo">Learn More</button>
+<section id="features">Features grid here</section>
+<footer id="footer">Footer content</footer>
 ```
 
-### Option C: npm Script with Manual Env
+#### Dashboard (`/app/dashboard`)
 
-```bash
-# If .env is missing, pull from Supabase first:
-npm run secrets:pull-supabase
-
-# Then run:
-npm run webflow:create-pages
+```html
+<div id="app-root">
+  <nav id="sidebar">Sidebar navigation</nav>
+  <main id="main-content">
+    <div id="signals-feed">Signal cards here</div>
+  </main>
+</div>
 ```
+
+#### Kalkulator (`/app/kalkulator`)
+
+```html
+<div id="calculator-root">
+  <form id="calculator-form">
+    <input id="calc-input-1" type="number" placeholder="Beløp">
+    <input id="calc-input-2" type="number" placeholder="Rente">
+    <button id="calc-submit">Beregn</button>
+    <button id="calc-reset">Reset</button>
+  </form>
+  <div id="calc-result" class="hidden">
+    <p id="calc-result-text">Result here</p>
+  </div>
+</div>
+```
+
+**Full list:** [`docs/WEBFLOW-ELEMENT-IDS.md`](docs/WEBFLOW-ELEMENT-IDS.md)
+
+**How to add IDs:**
+1. Select element in Designer
+2. Open Settings panel (right sidebar)
+3. Scroll to **Element Settings**
+4. Add ID in **ID** field
+5. Save
 
 ---
 
-## Step 2: Verify Pages in Designer (1 min)
-
-1. Go to: https://webflow.com/dashboard/sites/klarpakke/designer
-2. Click **Pages** panel (left sidebar)
-3. You should see all 6 pages:
-   - ✅ Home (`index`)
-   - ✅ Pricing (`pricing`)
-   - ✅ Dashboard (`app/dashboard`)
-   - ✅ Kalkulator (`app/kalkulator`)
-   - ✅ Settings (`app/settings`)
-   - ✅ Login (`login`)
-
----
-
-## Step 3: Add Element IDs (15 min)
-
-Now you need to add required element IDs to each page.
-
-### For each page:
-
-1. Click page name in **Pages** panel
-2. Designer opens that page
-3. Add elements (divs, buttons, etc.) with required IDs
-4. See detailed instructions below
-
-### Home Page Example
-
-```
-Add these elements with IDs:
-├─ <div id="cta-primary">
-├─ <button id="cta-demo">
-├─ <section id="features">
-└─ <footer id="footer">
-```
-
-**Full list:** See [`docs/WEBFLOW-ELEMENT-IDS.md`](docs/WEBFLOW-ELEMENT-IDS.md)
-
----
-
-## Step 4: Add Custom Code (10 min)
+### Step 4: Add Custom Code (10 min)
 
 For each page that needs scripts:
 
-1. **Open page** in Designer
+1. Open page in Designer
 2. Click **Settings** (⚙️ icon, top right)
-3. Scroll to **Custom code**
+3. Scroll to **Custom code** section
 4. Add code snippets
 
-### Example: Home Page
+#### Example: Home Page
 
-**In "Head code" section:**
+**Head code:**
 ```html
 <title>Klarpakke - Trygg Krypto-Trading med AI</title>
 <meta name="description" content="Din AI-drevne kryptotradingassistent for nordiske investorer.">
+<meta property="og:title" content="Klarpakke">
+<meta property="og:description" content="AI-drevet krypto trading.">
 ```
 
-**In "Before </body> code" section:**
+**Before </body> code:**
 ```html
 <script src="/scripts/klarpakke-site.js"></script>
 ```
 
-**See:** [`docs/WEBFLOW-AUTO-PAGES.md`](docs/WEBFLOW-AUTO-PAGES.md) for details
+#### Example: Dashboard
+
+**Head code:**
+```html
+<title>Dashboard - Klarpakke</title>
+```
+
+**Before </body> code:**
+```html
+<script src="/scripts/klarpakke-site.js"></script>
+```
+
+#### Example: Kalkulator
+
+**Head code:**
+```html
+<title>Risiko-Kalkulator - Klarpakke</title>
+```
+
+**Before </body> code:**
+```html
+<script src="/scripts/calculator.js"></script>
+```
+
+**See:** [`docs/WEBFLOW-MANUAL.md`](docs/WEBFLOW-MANUAL.md) for complete code snippets
 
 ---
 
-## Step 5: Publish (1 min)
+### Step 5: Design Pages (20+ min)
 
-1. In Webflow Designer, click **Publish** button (top right)
+1. Use Webflow's visual builder
+2. Add sections, divs, buttons as needed
+3. Reference design system: [`docs/DESIGN.md`](docs/DESIGN.md)
+4. Reference copy: [`docs/COPY.md`](docs/COPY.md)
+5. Test in preview mode
+
+---
+
+### Step 6: Publish (1 min)
+
+1. Click **Publish** button (top right)
 2. Select **Publish to live**
 3. Wait for green ✅ confirmation
 4. Done! 🎉
 
 ---
 
-## What Just Happened?
+## ✅ Verification Checklist
 
-```
-✅ Secrets already configured (Supabase + GitHub)
-   ✅ Step 1: Ran automation via GitHub Actions
-   ✅ Step 2: Verified pages exist
-   ✅ Step 3: Added element IDs (your work)
-   ✅ Step 4: Added custom code (your work)
-   ✅ Step 5: Published site
-```
+After creating all pages:
 
-Your Klarpakke website is now **ready for API integration**!
-
----
-
-## Secret Management
-
-All secrets are already synced between:
-- 🔐 **Supabase** (source of truth)
-- 🔐 **GitHub Secrets** (for CI/CD)
-- 🔐 **Local `.env`** (for development)
-
-### Useful Commands
-
-```bash
-# Pull secrets from Supabase to local .env
-npm run secrets:pull-supabase
-
-# Push secrets from local .env to Supabase
-npm run secrets:push-supabase
-
-# Push secrets to GitHub
-npm run secrets:push-github
-
-# Validate all secrets
-npm run secrets:validate
-```
-
-**No manual setup needed!** Your automation team already configured everything.
+- [ ] All 6 pages exist in Pages panel
+- [ ] Each page has correct slug
+- [ ] Element IDs are added to all required elements
+- [ ] Custom Code is added to page settings (not inline)
+- [ ] Pages are designed with Webflow components
+- [ ] Site is published
+- [ ] Browser console shows `[Klarpakke]` logger messages
+- [ ] No errors in DevTools console
 
 ---
 
-## Troubleshooting
-
-### "Pages not appearing?"
-
-1. Hard refresh Designer: `Cmd+Shift+R` or `Ctrl+Shift+R`
-2. Close and reopen Webflow Designer
-3. Check GitHub Actions workflow logs for errors
-
-### "API Token not working?"
-
-```bash
-# Validate secrets
-npm run secrets:validate
-
-# Pull latest from Supabase
-npm run secrets:pull-supabase
-```
+## 🔧 Troubleshooting
 
 ### "Element IDs not working?"
 
-1. Make sure you're adding **to actual elements** (not text)
+1. Make sure you're adding **to actual elements** (not text nodes)
 2. Use **exact ID names** from WEBFLOW-ELEMENT-IDS.md
 3. IDs are case-sensitive: `#MyId` ≠ `#myid`
 4. Use **Settings panel** to set IDs (top right ⚙️)
+5. Check with browser DevTools: `document.querySelector('#your-id')`
+
+### "Custom Code not executing?"
+
+1. Verify Custom Code is in **Page Settings** (not in page elements)
+2. Use `<script src="...">` not inline JavaScript
+3. Check browser console for errors
+4. Hard refresh page (`Cmd+Shift+R` / `Ctrl+Shift+R`)
+5. Make sure scripts are deployed to `/scripts/` path
+
+### "Pages not showing up?"
+
+1. Hard refresh Designer: `Cmd+Shift+R` or `Ctrl+Shift+R`
+2. Close and reopen Webflow Designer
+3. Check for archived pages (scroll down in Pages panel)
+4. Check slug doesn't have typos
 
 ---
 
-## Next Steps After Setup
+## 📚 Related Documentation
 
-1. **Design your pages** - Use Webflow to add content
-2. **Test locally** - Hard refresh in browser
-3. **Check console** - DevTools Console should show `[Klarpakke]` messages
-4. **Deploy backend** - `npm run deploy:backend`
-5. **Run health check** - `npm run health:full`
+**Must Read:**
+- [`docs/WEBFLOW-MANUAL.md`](docs/WEBFLOW-MANUAL.md) – Detailed manual setup
+- [`docs/WEBFLOW-ELEMENT-IDS.md`](docs/WEBFLOW-ELEMENT-IDS.md) – Required IDs per page
 
----
-
-## Questions?
-
-See full documentation:
-- [`docs/WEBFLOW-AUTO-PAGES.md`](docs/WEBFLOW-AUTO-PAGES.md) – Complete guide
-- [`docs/WEBFLOW-ELEMENT-IDS.md`](docs/WEBFLOW-ELEMENT-IDS.md) – Required IDs
-- [`docs/DESIGN.md`](docs/DESIGN.md) – Design system
+**Design & Content:**
+- [`docs/DESIGN.md`](docs/DESIGN.md) – Design system (colors, typography)
 - [`docs/COPY.md`](docs/COPY.md) – Content templates
 
-Open [GitHub Issue](https://github.com/tombomann/klarpakke/issues) if stuck.
+**Technical:**
+- [`docs/WEBFLOW-SITEMAP.md`](docs/WEBFLOW-SITEMAP.md) – Site structure
+- [`docs/WEBFLOW-QA-CHECKLIST.md`](docs/WEBFLOW-QA-CHECKLIST.md) – Testing checklist
 
 ---
 
-## 🎯 Ready to Launch?
+## 🚀 After Pages Are Created
 
-**Total time: < 30 minutes from automation to live site!**
+```bash
+# Pull latest changes (if working locally)
+git pull origin main
 
-1. ✅ Secrets already configured
-2. 🚀 Run GitHub Actions workflow (< 1 min)
-3. 📝 Add element IDs (15 min)
-4. 💻 Add Custom Code (10 min)
-5. 🎨 Design pages (flexible)
-6. 📤 Publish (1 min)
+# Validate secrets
+npm run secrets:validate
 
-**Go to GitHub Actions and click "Run workflow" now! →** https://github.com/tombomann/klarpakke/actions
+# Test API connections
+npm run health:full
+
+# Deploy backend
+npm run deploy:backend
+
+# Test Webflow site
+# Open in browser and check DevTools console
+```
+
+---
+
+## ⏱️ Time Breakdown
+
+| Task | Time |
+|------|------|
+| Open Designer | 2 min |
+| Create 6 pages | 5 min |
+| Add element IDs | 15 min |
+| Add Custom Code | 10 min |
+| Design pages | 20+ min |
+| Publish | 1 min |
+| **Total** | **53+ min** |
+
+---
+
+## 🎯 Success Criteria
+
+✅ **Done when:**
+- All 6 pages visible in Webflow Designer
+- Element IDs set correctly
+- Custom Code added to page settings
+- Pages designed with content
+- Site published
+- Browser console shows `[Klarpakke]` messages
+- No JavaScript errors in console
+
+---
+
+## 👥 Need Help?
+
+**Questions?**
+- Check: [`docs/WEBFLOW-MANUAL.md`](docs/WEBFLOW-MANUAL.md)
+- Open: [GitHub Issue](https://github.com/tombomann/klarpakke/issues)
+
+**Report bugs:**
+Include:
+- Page name
+- Element ID that's not working
+- Browser console error (if any)
+- Screenshot of Webflow Designer
+
+---
+
+**Ready? Open Webflow Designer and start creating! 🎨**
+
+🔗 **Go to Designer:** https://webflow.com/dashboard/sites/klarpakke/designer
