@@ -11,6 +11,9 @@
  * node scripts/create-webflow-pages.js
  */
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -26,8 +29,11 @@ const BASE_URL = 'api.webflow.com';
 
 if (!WEBFLOW_API_TOKEN || !WEBFLOW_SITE_ID) {
   console.error('❌ Missing required environment variables:');
-  console.error('   - WEBFLOW_API_TOKEN');
-  console.error('   - WEBFLOW_SITE_ID');
+  if (!WEBFLOW_API_TOKEN) console.error('   - WEBFLOW_API_TOKEN');
+  if (!WEBFLOW_SITE_ID) console.error('   - WEBFLOW_SITE_ID');
+  console.error('');
+  console.error('💡 Make sure .env file exists with these variables.');
+  console.error('   Run: npm run secrets:pull-supabase');
   process.exit(1);
 }
 
@@ -64,7 +70,7 @@ function makeRequest(method, path, body = null) {
         try {
           const parsed = JSON.parse(data);
           if (res.statusCode >= 400) {
-            reject(new Error(`HTTP ${res.statusCode}: ${JSON.stringify(parsed)}`));
+            reject(new Error(`HTTP ${res.statusCode}: ${JSON.stringify(parsed)}`))
           } else {
             resolve(parsed);
           }
@@ -256,11 +262,11 @@ async function main() {
   }
 
   logger.info('');
-  logger.info('='  .repeat(50));
+  logger.info('=' .repeat(50));
   logger.success(`Created: ${results.created.length} pages`);
   logger.warn(`Skipped: ${results.skipped.length} pages (already exist)`);
   logger.error(`Failed: ${results.failed.length} pages`);
-  logger.info('='  .repeat(50));
+  logger.info('=' .repeat(50));
 
   if (results.created.length > 0) {
     logger.info('');
