@@ -1,51 +1,25 @@
-# 🚀 Automatic Webflow Pages Setup (Quick Start)
+# 🚀 Automatic Webflow Pages Setup (1-Click)
 
-**Goal:** Create 6 pages automatically in Webflow + prepare them for custom code injection
+**Goal:** Create 6 pages automatically in Webflow
 
-**Time:** 5 minutes to set up + 30 minutes manual in Designer
-
----
-
-## Step 1: Prepare Credentials (2 min)
-
-### Get Webflow API Token
-
-1. Go to: https://webflow.com/account/tokens
-2. Click **Generate Token**
-3. Select **Full access** scope
-4. Copy the token (you’ll use it once)
-
-### Get Webflow Site ID
-
-1. Go to: https://webflow.com/dashboard
-2. Find **Klarpakke** project
-3. Click **Project Settings** → **General**
-4. Copy **Site ID** from top of page
+**Time:** < 2 minutes (secrets already configured! ✅)
 
 ---
 
-## Step 2: Set GitHub Secrets (2 min)
+## ✅ Prerequisites (Already Done!)
 
-1. Go to your GitHub repo: https://github.com/tombomann/klarpakke
-2. **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Add two secrets:
+Your repo already has:
+- ✅ `WEBFLOW_API_TOKEN` in GitHub Secrets
+- ✅ `WEBFLOW_SITE_ID` in GitHub Secrets
+- ✅ All secrets synced from Supabase
 
-   **Secret 1:**
-   - Name: `WEBFLOW_API_TOKEN`
-   - Value: (paste your token)
-   - Click **Add secret**
-
-   **Secret 2:**
-   - Name: `WEBFLOW_SITE_ID`
-   - Value: (paste your site ID)
-   - Click **Add secret**
+**No setup needed!** Just run the automation.
 
 ---
 
-## Step 3: Run Page Creation (1 min)
+## Step 1: Run Page Creation (< 1 min)
 
-### Option A: GitHub Actions (Recommended)
+### Option A: GitHub Actions (Recommended) ⭐
 
 1. Go to: https://github.com/tombomann/klarpakke/actions
 2. Find: **📄 Create Webflow Pages (Automated)**
@@ -55,24 +29,23 @@
 ### Option B: Local Command
 
 ```bash
-# Set env vars temporarily
-export WEBFLOW_API_TOKEN="your_token_here"
-export WEBFLOW_SITE_ID="your_site_id_here"
-
-# Run script
-node scripts/create-webflow-pages.js
+# Secrets are already in .env (synced from Supabase)
+npm run webflow:create-pages
 ```
 
-### Option C: npm Script
+### Option C: npm Script with Manual Env
 
 ```bash
-# Requires env vars set in .env or terminal
+# If .env is missing, pull from Supabase first:
+npm run secrets:pull-supabase
+
+# Then run:
 npm run webflow:create-pages
 ```
 
 ---
 
-## Step 4: Verify Pages in Designer (2 min)
+## Step 2: Verify Pages in Designer (1 min)
 
 1. Go to: https://webflow.com/dashboard/sites/klarpakke/designer
 2. Click **Pages** panel (left sidebar)
@@ -86,7 +59,7 @@ npm run webflow:create-pages
 
 ---
 
-## Step 5: Add Element IDs (15 min)
+## Step 3: Add Element IDs (15 min)
 
 Now you need to add required element IDs to each page.
 
@@ -111,7 +84,7 @@ Add these elements with IDs:
 
 ---
 
-## Step 6: Add Custom Code (10 min)
+## Step 4: Add Custom Code (10 min)
 
 For each page that needs scripts:
 
@@ -137,7 +110,7 @@ For each page that needs scripts:
 
 ---
 
-## Step 7: Publish (1 min)
+## Step 5: Publish (1 min)
 
 1. In Webflow Designer, click **Publish** button (top right)
 2. Select **Publish to live**
@@ -149,15 +122,42 @@ For each page that needs scripts:
 ## What Just Happened?
 
 ```
-✅ Step 1-2: Got credentials
-   ✅ Step 3: Created 6 pages via API
-   ✅ Step 4: Verified pages exist
-   ✅ Step 5: Added element IDs (your work)
-   ✅ Step 6: Added custom code (your work)
-   ✅ Step 7: Published site
+✅ Secrets already configured (Supabase + GitHub)
+   ✅ Step 1: Ran automation via GitHub Actions
+   ✅ Step 2: Verified pages exist
+   ✅ Step 3: Added element IDs (your work)
+   ✅ Step 4: Added custom code (your work)
+   ✅ Step 5: Published site
 ```
 
 Your Klarpakke website is now **ready for API integration**!
+
+---
+
+## Secret Management
+
+All secrets are already synced between:
+- 🔐 **Supabase** (source of truth)
+- 🔐 **GitHub Secrets** (for CI/CD)
+- 🔐 **Local `.env`** (for development)
+
+### Useful Commands
+
+```bash
+# Pull secrets from Supabase to local .env
+npm run secrets:pull-supabase
+
+# Push secrets from local .env to Supabase
+npm run secrets:push-supabase
+
+# Push secrets to GitHub
+npm run secrets:push-github
+
+# Validate all secrets
+npm run secrets:validate
+```
+
+**No manual setup needed!** Your automation team already configured everything.
 
 ---
 
@@ -171,13 +171,17 @@ Your Klarpakke website is now **ready for API integration**!
 
 ### "API Token not working?"
 
-1. Check token doesn’t have leading/trailing spaces
-2. Verify secret is saved (go to Secrets page, it should be listed)
-3. Generate new token if unsure
+```bash
+# Validate secrets
+npm run secrets:validate
+
+# Pull latest from Supabase
+npm run secrets:pull-supabase
+```
 
 ### "Element IDs not working?"
 
-1. Make sure you’re adding **to actual elements** (not text)
+1. Make sure you're adding **to actual elements** (not text)
 2. Use **exact ID names** from WEBFLOW-ELEMENT-IDS.md
 3. IDs are case-sensitive: `#MyId` ≠ `#myid`
 4. Use **Settings panel** to set IDs (top right ⚙️)
@@ -203,3 +207,18 @@ See full documentation:
 - [`docs/COPY.md`](docs/COPY.md) – Content templates
 
 Open [GitHub Issue](https://github.com/tombomann/klarpakke/issues) if stuck.
+
+---
+
+## 🎯 Ready to Launch?
+
+**Total time: < 30 minutes from automation to live site!**
+
+1. ✅ Secrets already configured
+2. 🚀 Run GitHub Actions workflow (< 1 min)
+3. 📝 Add element IDs (15 min)
+4. 💻 Add Custom Code (10 min)
+5. 🎨 Design pages (flexible)
+6. 📤 Publish (1 min)
+
+**Go to GitHub Actions and click "Run workflow" now! →** https://github.com/tombomann/klarpakke/actions
